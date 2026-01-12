@@ -209,9 +209,6 @@ export function AIAssistant() {
                                     <Send className="w-4 h-4" />
                                 </button>
                             </div>
-                            <p className="text-xs text-dark-400 mt-2 text-center">
-                                Powered by DeepSeek AI
-                            </p>
                         </div>
                     </motion.div>
                 )}
