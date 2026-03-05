@@ -7,6 +7,7 @@ import {
     query,
     where,
     getDocs,
+    getDoc,
     addDoc,
     doc,
     updateDoc,
@@ -30,12 +31,15 @@ import {
     Lock,
     UserPlus,
     Check,
+    Zap,
+    Copy,
 } from 'lucide-react';
 import { db } from '@/lib/firebase/config';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { StudyGroup } from '@/types';
+import { StudyGroup, SwipeGroup, User, Match } from '@/types';
 import { Avatar, Button, Input } from '@/components/ui';
 import { cn } from '@/lib/utils';
+import { createSwipeGroup, getMySwipeGroups, addMemberToGroupByCode } from '@/lib/firebase/group-matching';
 
 const createGroupSchema = z.object({
     name: z.string().min(2, 'Tên nhóm phải có ít nhất 2 ký tự'),
@@ -48,7 +52,7 @@ type CreateGroupData = z.infer<typeof createGroupSchema>;
 
 export default function GroupsPage() {
     const { user, userData } = useAuth();
-    const [activeTab, setActiveTab] = useState<'my' | 'explore'>('my');
+    const [activeTab, setActiveTab] = useState<'my' | 'explore' | 'swipe'>('my');
     const [myGroups, setMyGroups] = useState<StudyGroup[]>([]);
     const [exploreGroups, setExploreGroups] = useState<StudyGroup[]>([]);
     const [loading, setLoading] = useState(true);
@@ -56,6 +60,17 @@ export default function GroupsPage() {
     const [creating, setCreating] = useState(false);
     const [joining, setJoining] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+
+    // Swipe group state
+    const [mySwipeGroups, setMySwipeGroups] = useState<SwipeGroup[]>([]);
+    const [showCreateSwipeGroup, setShowCreateSwipeGroup] = useState(false);
+    const [matchedUsers, setMatchedUsers] = useState<{ user: User; matchId: string }[]>([]);
+    const [selectedPartner, setSelectedPartner] = useState<string | null>(null);
+    const [swipeGroupName, setSwipeGroupName] = useState('');
+    const [swipeGroupDesc, setSwipeGroupDesc] = useState('');
+    const [creatingSwipeGroup, setCreatingSwipeGroup] = useState(false);
+    const [addCodeInput, setAddCodeInput] = useState('');
+    const [addingByCode, setAddingByCode] = useState<string | null>(null);
 
     const {
         register,
@@ -96,7 +111,6 @@ export default function GroupsPage() {
         if (!user) return;
 
         const fetchExploreGroups = async () => {
-            // Get all public groups
             const groupsQuery = query(
                 collection(db, 'groups'),
                 where('isPublic', '==', true),
@@ -117,6 +131,47 @@ export default function GroupsPage() {
         if (activeTab === 'explore') {
             fetchExploreGroups();
         }
+    }, [user, activeTab]);
+
+    // Fetch swipe groups and matched users
+    useEffect(() => {
+        if (!user || activeTab !== 'swipe') return;
+
+        const fetchSwipeData = async () => {
+            try {
+                // Get swipe groups
+                const groups = await getMySwipeGroups(user.uid);
+                setMySwipeGroups(groups);
+
+                // Get matched users for creating new swipe groups
+                const matchesQuery = query(
+                    collection(db, 'matches'),
+                    where('users', 'array-contains', user.uid)
+                );
+                const matchesSnapshot = await getDocs(matchesQuery);
+                const matched: { user: User; matchId: string }[] = [];
+
+                for (const matchDoc of matchesSnapshot.docs) {
+                    const matchData = matchDoc.data() as Match;
+                    const otherUserId = matchData.users.find((id: string) => id !== user.uid);
+                    if (otherUserId) {
+                        const userDoc = await getDoc(doc(db, 'users', otherUserId));
+                        if (userDoc.exists()) {
+                            matched.push({
+                                user: { uid: otherUserId, ...userDoc.data() } as User,
+                                matchId: matchDoc.id,
+                            });
+                        }
+                    }
+                }
+
+                setMatchedUsers(matched);
+            } catch (error) {
+                console.error('Error fetching swipe data:', error);
+            }
+        };
+
+        fetchSwipeData();
     }, [user, activeTab]);
 
     const handleCreateGroup = async (data: CreateGroupData) => {
@@ -247,7 +302,7 @@ export default function GroupsPage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex items-center gap-2 mb-6">
+            <div className="flex items-center gap-2 mb-6 flex-wrap">
                 <button
                     onClick={() => setActiveTab('my')}
                     className={cn(
@@ -258,7 +313,19 @@ export default function GroupsPage() {
                     )}
                 >
                     <Users className="w-4 h-4" />
-                    Nhóm của tôi ({myGroups.length})
+                    Nhóm học ({myGroups.length})
+                </button>
+                <button
+                    onClick={() => setActiveTab('swipe')}
+                    className={cn(
+                        'flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all',
+                        activeTab === 'swipe'
+                            ? 'bg-primary-500 text-dark-900'
+                            : 'bg-white dark:bg-dark-800 hover:bg-dark-100 dark:hover:bg-dark-700'
+                    )}
+                >
+                    <Zap className="w-4 h-4" />
+                    Nhóm quẹt ({mySwipeGroups.length})
                 </button>
                 <button
                     onClick={() => setActiveTab('explore')}
@@ -496,6 +563,123 @@ export default function GroupsPage() {
                                 </Button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Create Swipe Group Modal */}
+            {showCreateSwipeGroup && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="card w-full max-w-md p-6 animate-scale-in">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-xl font-bold">Tạo nhóm quẹt</h2>
+                            <button
+                                onClick={() => setShowCreateSwipeGroup(false)}
+                                className="p-2 hover:bg-dark-100 dark:hover:bg-dark-700 rounded-xl"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <p className="text-sm text-dark-500 mb-4">
+                            Chọn một bạn đã match để tạo nhóm quẹt. Mọi người sẽ thấy nhóm này khi quẹt!
+                        </p>
+
+                        {/* Select partner */}
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium mb-2">Chọn bạn match</label>
+                            {matchedUsers.length === 0 ? (
+                                <p className="text-sm text-dark-400">Bạn chưa match với ai. Match trước rồi tạo nhóm!</p>
+                            ) : (
+                                <div className="space-y-2 max-h-40 overflow-y-auto">
+                                    {matchedUsers.map(({ user: matchUser }) => (
+                                        <button
+                                            key={matchUser.uid}
+                                            onClick={() => setSelectedPartner(matchUser.uid)}
+                                            className={cn(
+                                                'w-full flex items-center gap-3 p-3 rounded-xl transition-colors',
+                                                selectedPartner === matchUser.uid
+                                                    ? 'bg-primary-100 dark:bg-primary-900/30 border-2 border-primary-500'
+                                                    : 'bg-dark-50 dark:bg-dark-700 hover:bg-dark-100 dark:hover:bg-dark-600'
+                                            )}
+                                        >
+                                            <Avatar
+                                                src={matchUser.avatar}
+                                                name={matchUser.displayName}
+                                                size="sm"
+                                            />
+                                            <span className="font-medium text-sm">{matchUser.displayName}</span>
+                                            {selectedPartner === matchUser.uid && (
+                                                <Check className="w-5 h-5 text-primary-500 ml-auto" />
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="space-y-3 mb-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Tên nhóm</label>
+                                <input
+                                    type="text"
+                                    value={swipeGroupName}
+                                    onChange={(e) => setSwipeGroupName(e.target.value)}
+                                    placeholder="VD: Ôn thi IELTS cùng nhau"
+                                    className="input w-full"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Mô tả</label>
+                                <textarea
+                                    value={swipeGroupDesc}
+                                    onChange={(e) => setSwipeGroupDesc(e.target.value)}
+                                    placeholder="Mô tả ngắn về nhóm..."
+                                    className="input w-full min-h-20 resize-none"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <Button
+                                variant="secondary"
+                                className="flex-1"
+                                onClick={() => setShowCreateSwipeGroup(false)}
+                            >
+                                Hủy
+                            </Button>
+                            <Button
+                                className="flex-1"
+                                loading={creatingSwipeGroup}
+                                disabled={!selectedPartner || !swipeGroupName.trim() || !swipeGroupDesc.trim()}
+                                onClick={async () => {
+                                    if (!user || !selectedPartner) return;
+                                    setCreatingSwipeGroup(true);
+                                    try {
+                                        await createSwipeGroup(
+                                            user.uid,
+                                            selectedPartner,
+                                            swipeGroupName,
+                                            swipeGroupDesc
+                                        );
+                                        setShowCreateSwipeGroup(false);
+                                        setSwipeGroupName('');
+                                        setSwipeGroupDesc('');
+                                        setSelectedPartner(null);
+                                        alert('Đã tạo nhóm quẹt! Mọi người giờ có thể tìm thấy nhóm của bạn.');
+                                        // Refresh
+                                        const groups = await getMySwipeGroups(user.uid);
+                                        setMySwipeGroups(groups);
+                                    } catch (error: any) {
+                                        alert(error.message || 'Đã có lỗi xảy ra');
+                                    } finally {
+                                        setCreatingSwipeGroup(false);
+                                    }
+                                }}
+                            >
+                                Tạo nhóm
+                            </Button>
+                        </div>
                     </div>
                 </div>
             )}

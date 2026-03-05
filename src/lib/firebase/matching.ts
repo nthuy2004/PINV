@@ -274,6 +274,7 @@ export async function recordDecline(
 
 /**
  * Update daily swipe count
+ * Automatically resets to 0 if a new day has started
  */
 export async function updateSwipeCount(userId: string): Promise<number> {
     const userRef = doc(db, 'users', userId);
@@ -287,8 +288,10 @@ export async function updateSwipeCount(userId: string): Promise<number> {
     const now = new Date();
     const lastReset = userData.lastSwipeReset?.toDate() || new Date(0);
 
-    // Check if we need to reset (new day)
-    const isNewDay = now.toDateString() !== lastReset.toDateString();
+    // Check if we need to reset (new day in Vietnam timezone)
+    const vnNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+    const vnLastReset = new Date(lastReset.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+    const isNewDay = vnNow.toDateString() !== vnLastReset.toDateString();
 
     const newCount = isNewDay ? 1 : userData.dailySwipes + 1;
 
@@ -300,3 +303,30 @@ export async function updateSwipeCount(userId: string): Promise<number> {
 
     return newCount;
 }
+
+/**
+ * Check and reset swipe counter if new day (call on page load)
+ */
+export async function checkAndResetSwipeCounter(userId: string): Promise<void> {
+    const userRef = doc(db, 'users', userId);
+    const userDoc = await getDoc(userRef);
+
+    if (!userDoc.exists()) return;
+
+    const userData = userDoc.data() as User;
+    const now = new Date();
+    const lastReset = userData.lastSwipeReset?.toDate() || new Date(0);
+
+    const vnNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+    const vnLastReset = new Date(lastReset.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+    const isNewDay = vnNow.toDateString() !== vnLastReset.toDateString();
+
+    if (isNewDay && userData.dailySwipes > 0) {
+        await setDoc(userRef, {
+            dailySwipes: 0,
+            lastSwipeReset: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+        }, { merge: true });
+    }
+}
+

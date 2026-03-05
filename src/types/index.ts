@@ -211,16 +211,59 @@ export interface StudyLocation {
     createdAt: Timestamp;
 }
 
+
 // ============ Notification Types ============
 export interface Notification {
     id?: string;
     userId: string;
-    type: 'match' | 'message' | 'group_invite' | 'event_reminder' | 'badge_earned' | 'system';
+    type: 'match' | 'message' | 'group_invite' | 'event_reminder' | 'badge_earned' | 'system' | 'group_join_request';
     title: string;
     body: string;
     data?: Record<string, string>;
     read: boolean;
     createdAt: Timestamp;
+}
+
+// ============ Swipe Group Types (Quẹt theo nhóm) ============
+export interface SwipeGroup {
+    id: string;
+    name: string;
+    description: string;
+    creatorId: string;
+    members: string[]; // UIDs
+    maxMembers: number; // default 5
+    pendingRequests: string[]; // UIDs đang chờ duyệt
+    status: 'active' | 'full';
+    chatId: string;
+    createdFromMatchId?: string; // Match gốc tạo nhóm
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
+}
+
+export interface GroupJoinRequest {
+    id?: string;
+    userId: string;
+    groupId: string;
+    groupName: string;
+    status: 'pending' | 'approved' | 'rejected';
+    createdAt: Timestamp;
+    reviewedBy?: string;
+    reviewedAt?: Timestamp;
+}
+
+// ============ Friend Code Types ============
+export interface FriendCode {
+    id?: string;
+    userId: string;
+    code: string; // 6 ký tự uppercase
+    createdAt: Timestamp;
+}
+
+// ============ Pomodoro Settings ============
+export interface PomodoroSettings {
+    focusTime: number; // minutes (default 25)
+    shortBreakTime: number; // minutes (default 5)
+    longBreakTime: number; // minutes (default 15)
 }
 
 // ============ Interest Options ============

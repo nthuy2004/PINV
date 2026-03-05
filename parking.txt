@@ -1,0 +1,275 @@
+-- ============================================================
+-- DỮ LIỆU MẪU MỞ RỘNG (20-25 bản ghi mỗi bảng)
+-- Cơ sở dữ liệu Quản lý Bãi Gửi Xe (ParkingLotDB)
+-- ============================================================
+-- LƯU Ý: File này thay thế phần DỮ LIỆU MẪU trong ParkingLot_Database.sql
+-- Hãy xoá phần INSERT cũ trong file chính trước khi chạy file này.
+-- ============================================================
+USE ParkingLotDB;
+GO
+-- ============================================================
+-- 1. VehicleTypes (2 bản ghi - bảng tham chiếu)
+-- ============================================================
+INSERT INTO VehicleTypes (TypeName, Description) VALUES
+(N'Xe máy', N'Xe gắn máy 2 bánh'),
+(N'Ô tô', N'Xe ô tô 4 bánh trở lên');
+-- ============================================================
+-- 2. TicketTypes (2 bản ghi - bảng tham chiếu)
+-- ============================================================
+INSERT INTO TicketTypes (TypeName, Description) VALUES
+(N'Vé lượt', N'Vé gửi xe theo lượt, tính phí khi lấy xe'),
+(N'Vé hạn dài', N'Vé gửi xe theo số ngày đăng ký');
+-- ============================================================
+-- 3. ParkingLots (5 bản ghi)
+-- ============================================================
+INSERT INTO ParkingLots (LotName, Address, TotalCapacity, ContactPhone, OpenTime, CloseTime) VALUES
+(N'Bãi xe Trung tâm', N'123 Nguyễn Huệ, Quận 1, TP.HCM', 500, '0901234567', '05:00', '23:00'),
+(N'Bãi xe Công viên', N'456 Lê Lợi, Quận 3, TP.HCM', 300, '0907654321', '06:00', '22:00'),
+(N'Bãi xe Chợ Lớn', N'789 Hải Thượng Lãn Ông, Quận 5, TP.HCM', 400, '0911223344', '05:30', '22:30'),
+(N'Bãi xe Thủ Đức', N'321 Võ Văn Ngân, TP Thủ Đức, TP.HCM', 250, '0922334455', '06:00', '23:00'),
+(N'Bãi xe Tân Bình', N'654 Cộng Hòa, Quận Tân Bình, TP.HCM', 350, '0933445566', '05:00', '22:00');
+-- ============================================================
+-- 4. Customers (25 bản ghi)
+-- ============================================================
+INSERT INTO Customers (FullName, PhoneNumber, Email, IdentityCard, Address) VALUES
+(N'Hoàng Minh Tuấn', '0956789012', 'tuan.hm@email.com', '012345678901', N'789 Hai Bà Trưng, Q.1'),
+(N'Vũ Thị Mai Lan', '0967890123', 'lan.vtm@email.com', '012345678902', N'321 Điện Biên Phủ, Q.3'),
+(N'Nguyễn Thanh Hải', '0978901234', 'hai.nt@email.com', '012345678903', N'45 Trần Hưng Đạo, Q.1'),
+(N'Lê Thị Hồng Nhung', '0989012345', 'nhung.lth@email.com', '012345678904', N'67 Nguyễn Thị Minh Khai, Q.3'),
+(N'Trần Quốc Bảo', '0990123456', 'bao.tq@email.com', '012345678905', N'89 Cách Mạng Tháng 8, Q.10'),
+(N'Phạm Thị Thanh Thảo', '0901234568', 'thao.ptt@email.com', '012345678906', N'12 Lý Tự Trọng, Q.1'),
+(N'Đỗ Văn Nam', '0912345679', 'nam.dv@email.com', '012345678907', N'34 Pasteur, Q.1'),
+(N'Bùi Thị Kim Oanh', '0923456790', 'oanh.btk@email.com', '012345678908', N'56 Nam Kỳ Khởi Nghĩa, Q.1'),
+(N'Võ Hoàng Phúc', '0934567891', 'phuc.vh@email.com', '012345678909', N'78 Võ Văn Tần, Q.3'),
+(N'Ngô Thị Quỳnh', '0945678902', 'quynh.nt@email.com', '012345678910', N'90 Nguyễn Đình Chiểu, Q.3'),
+(N'Hồ Sĩ Rạng', '0956789013', 'rang.hs@email.com', '012345678911', N'11 Trường Sa, Bình Thạnh'),
+(N'Đinh Văn Sơn', '0967890124', 'son.dv@email.com', '012345678912', N'22 Hoàng Sa, Q.1'),
+(N'Lý Thị Tuyết', '0978901235', 'tuyet.lt@email.com', '012345678913', N'33 Lê Văn Sỹ, Q.3'),
+(N'Mai Xuân Uy', '0989012346', 'uy.mx@email.com', '012345678914', N'44 Phan Đình Phùng, Phú Nhuận'),
+(N'Trịnh Thị Vân', '0990123457', 'van.tt@email.com', '012345678915', N'55 Nguyễn Văn Trỗi, Phú Nhuận'),
+(N'Cao Đức Anh', '0901234577', 'anh.cd@email.com', '012345678916', N'66 Phan Xích Long, Phú Nhuận'),
+(N'Dương Thị Bích', '0912345688', 'bich.dt@email.com', '012345678917', N'77 Trường Chinh, Tân Bình'),
+(N'Phan Văn Công', '0923456799', 'cong.pv@email.com', '012345678918', N'88 Âu Cơ, Tân Bình'),
+(N'Lương Thị Diệu', '0934567800', 'dieu.lt@email.com', '012345678919', N'99 Lũy Bán Bích, Tân Phú'),
+(N'Tạ Quang Em', '0945678911', 'em.tq@email.com', '012345678920', N'10 Hòa Bình, Tân Phú'),
+(N'Huỳnh Thị Phượng', '0956789022', 'phuong.ht@email.com', '012345678921', N'21 Tô Hiến Thành, Q.10'),
+(N'Châu Văn Giang', '0967890133', 'giang.cv@email.com', '012345678922', N'32 Ba Tháng Hai, Q.10'),
+(N'Kiều Thị Hạnh', '0978901244', 'hanh.kt@email.com', '012345678923', N'43 Lý Thường Kiệt, Q.10'),
+(N'Tô Văn Khải', '0989012355', 'khai.tv@email.com', '012345678924', N'54 Sư Vạn Hạnh, Q.10'),
+(N'Đặng Thị Linh', '0990123466', 'linh.dt@email.com', '012345678925', N'65 Thành Thái, Q.10');
+-- ============================================================
+-- 5. ParkingZones (20 bản ghi)
+-- ============================================================
+INSERT INTO ParkingZones (ParkingLotID, ZoneName, VehicleTypeID, Capacity, Description) VALUES
+(1, N'Khu A - Xe máy tầng trệt', 1, 150, N'Khu gửi xe máy tầng trệt'),
+(1, N'Khu B - Xe máy tầng 1', 1, 150, N'Khu gửi xe máy tầng 1'),
+(1, N'Khu C - Ô tô tầng hầm B1', 2, 100, N'Khu ô tô tầng hầm B1'),
+(1, N'Khu D - Ô tô tầng hầm B2', 2, 100, N'Khu ô tô tầng hầm B2'),
+(2, N'Khu A - Xe máy ngoài trời', 1, 120, N'Khu xe máy ngoài trời có mái che'),
+(2, N'Khu B - Xe máy trong nhà', 1, 80, N'Khu xe máy trong nhà'),
+(2, N'Khu C - Ô tô', 2, 100, N'Khu ô tô có mái che'),
+(3, N'Khu A - Xe máy', 1, 200, N'Khu xe máy chợ Lớn'),
+(3, N'Khu B - Xe máy VIP', 1, 50, N'Khu xe máy VIP có camera'),
+(3, N'Khu C - Ô tô', 2, 100, N'Khu ô tô chợ Lớn'),
+(3, N'Khu D - Ô tô VIP', 2, 50, N'Khu ô tô VIP có bảo vệ'),
+(4, N'Khu A - Xe máy', 1, 100, N'Khu xe máy Thủ Đức'),
+(4, N'Khu B - Xe máy', 1, 50, N'Khu xe máy bổ sung'),
+(4, N'Khu C - Ô tô', 2, 100, N'Khu ô tô Thủ Đức'),
+(5, N'Khu A - Xe máy sân trước', 1, 120, N'Xe máy sân trước'),
+(5, N'Khu B - Xe máy sân sau', 1, 80, N'Xe máy sân sau'),
+(5, N'Khu C - Ô tô ngoài trời', 2, 80, N'Ô tô ngoài trời'),
+(5, N'Khu D - Ô tô trong nhà', 2, 70, N'Ô tô trong nhà có camera');
+-- ============================================================
+-- 6. Staff (20 bản ghi)
+-- ============================================================
+INSERT INTO Staff (FullName, PhoneNumber, Email, IdentityCard, Role, ParkingLotID, HireDate) VALUES
+(N'Nguyễn Văn An', '0912345678', 'an.nv@bxe.com', '079100000001', N'Quản lý', 1, '2024-01-15'),
+(N'Trần Thị Bình', '0923456789', 'binh.tt@bxe.com', '079100000002', N'Nhân viên', 1, '2024-06-01'),
+(N'Lê Văn Cường', '0934567890', 'cuong.lv@bxe.com', '079100000003', N'Nhân viên', 1, '2025-03-10'),
+(N'Phạm Thị Dung', '0945678901', 'dung.pt@bxe.com', '079100000004', N'Bảo vệ', 1, '2025-01-20'),
+(N'Hoàng Văn Em', '0956789012', 'em.hv@bxe.com', '079100000005', N'Nhân viên', 1, '2025-06-15'),
+(N'Vũ Thị Phương', '0967890123', 'phuong.vt@bxe.com', '079100000006', N'Quản lý', 2, '2024-02-01'),
+(N'Đỗ Văn Giang', '0978901234', 'giang.dv@bxe.com', '079100000007', N'Nhân viên', 2, '2024-08-15'),
+(N'Bùi Thị Hương', '0989012345', 'huong.bt@bxe.com', '079100000008', N'Nhân viên', 2, '2025-04-01'),
+(N'Võ Văn Khoa', '0990123456', 'khoa.vv@bxe.com', '079100000009', N'Bảo vệ', 2, '2025-02-10'),
+(N'Ngô Thị Lan', '0901122334', 'lan.nt@bxe.com', '079100000010', N'Quản lý', 3, '2024-03-01'),
+(N'Hồ Văn Minh', '0912233445', 'minh.hv@bxe.com', '079100000011', N'Nhân viên', 3, '2024-09-20'),
+(N'Đinh Thị Ngọc', '0923344556', 'ngoc.dt@bxe.com', '079100000012', N'Nhân viên', 3, '2025-05-01'),
+(N'Lý Văn Phát', '0934455667', 'phat.lv@bxe.com', '079100000013', N'Bảo vệ', 3, '2025-03-15'),
+(N'Mai Thị Quỳnh', '0945566778', 'quynh.mt@bxe.com', '079100000014', N'Quản lý', 4, '2024-04-10'),
+(N'Trịnh Văn Sáng', '0956677889', 'sang.tv@bxe.com', '079100000015', N'Nhân viên', 4, '2025-01-05'),
+(N'Cao Thị Tâm', '0967788990', 'tam.ct@bxe.com', '079100000016', N'Nhân viên', 4, '2025-07-01'),
+(N'Dương Văn Út', '0978899001', 'ut.dv@bxe.com', '079100000017', N'Bảo vệ', 4, '2025-06-10'),
+(N'Phan Thị Vân', '0989900112', 'van.pv@bxe.com', '079100000018', N'Quản lý', 5, '2024-05-20'),
+(N'Lương Văn Xuân', '0990011223', 'xuan.lv@bxe.com', '079100000019', N'Nhân viên', 5, '2025-02-28'),
+(N'Tạ Thị Yến', '0901122335', 'yen.tt@bxe.com', '079100000020', N'Nhân viên', 5, '2025-08-01');
+-- ============================================================
+-- 7. ParkingSlots (25 bản ghi - từ các khu khác nhau)
+-- ============================================================
+INSERT INTO ParkingSlots (ZoneID, SlotNumber, Status) VALUES
+(1, 'A-001', 'Available'), (1, 'A-002', 'Occupied'), (1, 'A-003', 'Available'),
+(1, 'A-004', 'Occupied'), (1, 'A-005', 'Available'),
+(2, 'B-001', 'Available'), (2, 'B-002', 'Occupied'), (2, 'B-003', 'Maintenance'),
+(2, 'B-004', 'Available'), (2, 'B-005', 'Reserved'),
+(3, 'C-001', 'Occupied'), (3, 'C-002', 'Available'), (3, 'C-003', 'Occupied'),
+(3, 'C-004', 'Available'), (3, 'C-005', 'Available'),
+(4, 'D-001', 'Occupied'), (4, 'D-002', 'Available'), (4, 'D-003', 'Occupied'),
+(5, 'A-001', 'Available'), (5, 'A-002', 'Occupied'),
+(6, 'B-001', 'Available'), (6, 'B-002', 'Available'),
+(7, 'C-001', 'Occupied'), (7, 'C-002', 'Available'), (7, 'C-003', 'Occupied');
+-- ============================================================
+-- 8. Vehicles (25 bản ghi)
+-- ============================================================
+INSERT INTO Vehicles (LicensePlate, VehicleTypeID, Brand, Model, Color, CustomerID) VALUES
+('59A-12345', 1, N'Honda', N'Air Blade', N'Đen', 1),
+('51F-67890', 2, N'Toyota', N'Camry', N'Trắng', 2),
+('59C-11111', 1, N'Yamaha', N'Exciter', N'Đỏ', 3),
+('51G-22222', 2, N'Hyundai', N'Accent', N'Xám', 4),
+('59D-33333', 1, N'Honda', N'SH 150i', N'Trắng', 5),
+('51H-44444', 2, N'Kia', N'Morning', N'Xanh', 6),
+('59E-55555', 1, N'Honda', N'Wave Alpha', N'Đen', 7),
+('51K-66666', 2, N'Mazda', N'CX-5', N'Đỏ', 8),
+('59F-77777', 1, N'Yamaha', N'NVX', N'Xanh', 9),
+('51L-88888', 2, N'Ford', N'Ranger', N'Bạc', 10),
+('59G-99999', 1, N'Honda', N'Vision', N'Tím', 11),
+('51M-10101', 2, N'VinFast', N'Lux A2.0', N'Đen', 12),
+('59H-20202', 1, N'SYM', N'Attila', N'Nâu', 13),
+('51N-30303', 2, N'Toyota', N'Vios', N'Trắng', 14),
+('59K-40404', 1, N'Piaggio', N'Vespa', N'Xanh', 15),
+('51P-50505', 2, N'Honda', N'City', N'Đỏ', 16),
+('59L-60606', 1, N'Honda', N'Lead', N'Hồng', 17),
+('51Q-70707', 2, N'Hyundai', N'Tucson', N'Trắng', 18),
+('59M-80808', 1, N'Yamaha', N'Grande', N'Kem', 19),
+('51R-90909', 2, N'Kia', N'Seltos', N'Cam', 20),
+('59N-01010', 1, N'Honda', N'Winner X', N'Đen', 21),
+('51S-02020', 2, N'Mazda', N'3', N'Xám', 22),
+('59P-03030', 1, N'Yamaha', N'Sirius', N'Xanh', 23),
+('51T-04040', 2, N'Toyota', N'Fortuner', N'Đen', 24),
+('59Q-05050', 1, N'Honda', N'PCX', N'Đen', 25);
+-- ============================================================
+-- 9. PricingPlans (20 bản ghi)
+-- ============================================================
+INSERT INTO PricingPlans (ParkingLotID, VehicleTypeID, TicketTypeID, DurationDays, Price, OvernightSurcharge) VALUES
+-- Bãi xe 1: Trung tâm
+(1, 1, 1, NULL, 5000, 2000),       -- Vé lượt xe máy
+(1, 2, 1, NULL, 20000, 10000),      -- Vé lượt ô tô
+(1, 1, 2, 30, 100000, 0),           -- Vé 30 ngày xe máy
+(1, 1, 2, 60, 180000, 0),           -- Vé 60 ngày xe máy
+(1, 2, 2, 30, 800000, 0),           -- Vé 30 ngày ô tô
+(1, 2, 2, 60, 1400000, 0),          -- Vé 60 ngày ô tô
+-- Bãi xe 2: Công viên
+(2, 1, 1, NULL, 4000, 1500),        -- Vé lượt xe máy
+(2, 2, 1, NULL, 15000, 8000),       -- Vé lượt ô tô
+(2, 1, 2, 30, 80000, 0),            -- Vé 30 ngày xe máy
+(2, 2, 2, 30, 600000, 0),           -- Vé 30 ngày ô tô
+-- Bãi xe 3: Chợ Lớn
+(3, 1, 1, NULL, 5000, 2000),        -- Vé lượt xe máy
+(3, 2, 1, NULL, 18000, 9000),       -- Vé lượt ô tô
+(3, 1, 2, 30, 90000, 0),            -- Vé 30 ngày xe máy
+(3, 2, 2, 30, 700000, 0),           -- Vé 30 ngày ô tô
+-- Bãi xe 4: Thủ Đức
+(4, 1, 1, NULL, 3000, 1000),        -- Vé lượt xe máy
+(4, 2, 1, NULL, 12000, 6000),       -- Vé lượt ô tô
+(4, 1, 2, 30, 70000, 0),            -- Vé 30 ngày xe máy
+(4, 2, 2, 30, 500000, 0),           -- Vé 30 ngày ô tô
+-- Bãi xe 5: Tân Bình
+(5, 1, 1, NULL, 4000, 1500),        -- Vé lượt xe máy
+(5, 2, 1, NULL, 15000, 7000);       -- Vé lượt ô tô
+-- ============================================================
+-- 10. Subscriptions (25 bản ghi)
+-- ============================================================
+INSERT INTO Subscriptions (SubscriptionCode, CustomerID, VehicleID, ParkingLotID, PricingPlanID, DurationDays, StartDate, TotalAmount, Status) VALUES
+('SUB-2026-0001', 1,  1,  1, 3, 30, '2026-02-01', 100000, 'Active'),
+('SUB-2026-0002', 2,  2,  1, 6, 60, '2026-02-15', 1400000, 'Active'),
+('SUB-2026-0003', 3,  3,  1, 3, 30, '2026-01-10', 100000, 'Active'),
+('SUB-2026-0004', 4,  4,  1, 5, 30, '2026-02-01', 800000, 'Active'),
+('SUB-2026-0005', 5,  5,  2, 9, 30, '2026-02-10', 80000, 'Active'),
+('SUB-2026-0006', 6,  6,  2, 10, 30, '2026-01-20', 600000, 'Active'),
+('SUB-2026-0007', 7,  7,  3, 13, 30, '2026-02-05', 90000, 'Active'),
+('SUB-2026-0008', 8,  8,  3, 14, 30, '2026-01-15', 700000, 'Active'),
+('SUB-2026-0009', 9,  9,  4, 17, 30, '2026-02-20', 70000, 'Active'),
+('SUB-2026-0010', 10, 10, 4, 18, 30, '2026-02-01', 500000, 'Active'),
+('SUB-2026-0011', 11, 11, 1, 4, 60, '2026-01-01', 180000, 'Active'),
+('SUB-2026-0012', 12, 12, 1, 6, 60, '2026-01-15', 1400000, 'Active'),
+('SUB-2026-0013', 13, 13, 2, 9, 30, '2026-02-10', 80000, 'Active'),
+('SUB-2026-0014', 14, 14, 3, 14, 30, '2026-01-01', 700000, 'Expired'),
+('SUB-2026-0015', 15, 15, 1, 3, 30, '2026-01-05', 100000, 'Expired'),
+('SUB-2026-0016', 16, 16, 5, 19, 30, '2026-02-15', 70000, 'Active'),      -- PricingPlanID sai, dùng 19 cho xe máy Tân Bình
+('SUB-2026-0017', 17, 17, 1, 3, 30, '2026-02-20', 100000, 'Active'),
+('SUB-2026-0018', 18, 18, 2, 10, 30, '2026-02-01', 600000, 'Active'),
+('SUB-2026-0019', 19, 19, 3, 13, 30, '2026-01-28', 90000, 'Active'),
+('SUB-2026-0020', 20, 20, 4, 18, 30, '2026-02-05', 500000, 'Active'),
+('SUB-2026-0021', 21, 21, 1, 3, 30, '2026-02-25', 100000, 'Active'),
+('SUB-2026-0022', 22, 22, 1, 5, 30, '2026-02-10', 800000, 'Active'),
+('SUB-2026-0023', 23, 23, 5, 19, 30, '2026-01-10', 70000, 'Expired'),     -- Dùng PricingPlanID 19
+('SUB-2026-0024', 24, 24, 3, 14, 30, '2026-02-18', 700000, 'Active'),
+('SUB-2026-0025', 25, 25, 2, 9, 30, '2026-02-22', 80000, 'Active');
+-- ============================================================
+-- 11. SingleTickets (25 bản ghi)
+-- ============================================================
+INSERT INTO SingleTickets (TicketCode, LicensePlate, VehicleTypeID, ParkingLotID, CheckInTime, CheckOutTime, CheckInStaffID, CheckOutStaffID, PricingPlanID, TotalAmount, Status) VALUES
+('TK-20260220-001', '59B-11111', 1, 1, '2026-02-20 07:30:00', '2026-02-20 10:00:00', 2, 3, 1, 5000, 'Completed'),
+('TK-20260220-002', '51G-22222', 2, 1, '2026-02-20 08:00:00', '2026-02-20 17:30:00', 2, 5, 2, 20000, 'Completed'),
+('TK-20260220-003', '59X-33333', 1, 1, '2026-02-20 09:15:00', '2026-02-20 12:00:00', 3, 2, 1, 5000, 'Completed'),
+('TK-20260221-001', '51Y-44444', 2, 1, '2026-02-21 10:00:00', '2026-02-21 16:45:00', 2, 3, 2, 20000, 'Completed'),
+('TK-20260221-002', '59Z-55555', 1, 2, '2026-02-21 07:00:00', '2026-02-21 18:00:00', 7, 8, 7, 4000, 'Completed'),
+('TK-20260221-003', '51A-66666', 2, 2, '2026-02-21 08:30:00', '2026-02-21 14:00:00', 7, 9, 8, 15000, 'Completed'),
+('TK-20260222-001', '59AA-7777', 1, 1, '2026-02-22 09:30:00', '2026-02-22 11:00:00', 2, 3, 1, 5000, 'Completed'),
+('TK-20260222-002', '51BB-8888', 2, 1, '2026-02-22 10:00:00', '2026-02-22 19:00:00', 3, 5, 2, 20000, 'Completed'),
+('TK-20260222-003', '59CC-9999', 1, 3, '2026-02-22 06:30:00', '2026-02-22 08:00:00', 11, 12, 11, 5000, 'Completed'),
+('TK-20260223-001', '51DD-1010', 2, 3, '2026-02-23 07:00:00', '2026-02-23 15:30:00', 11, 13, 12, 18000, 'Completed'),
+('TK-20260223-002', '59EE-2020', 1, 4, '2026-02-23 08:00:00', '2026-02-23 12:00:00', 15, 16, 15, 3000, 'Completed'),
+('TK-20260223-003', '51FF-3030', 2, 4, '2026-02-23 09:00:00', '2026-02-23 17:00:00', 15, 17, 16, 12000, 'Completed'),
+('TK-20260224-001', '59GG-4040', 1, 5, '2026-02-24 07:30:00', '2026-02-24 10:30:00', 19, 20, 19, 4000, 'Completed'),
+('TK-20260224-002', '51HH-5050', 2, 5, '2026-02-24 08:00:00', '2026-02-24 18:00:00', 19, 20, 20, 15000, 'Completed'),
+('TK-20260225-001', '59KK-6060', 1, 1, '2026-02-25 06:00:00', '2026-02-25 22:30:00', 2, 4, 1, 7000, 'Completed'),
+('TK-20260225-002', '51LL-7070', 2, 2, '2026-02-25 23:00:00', '2026-02-26 07:00:00', 8, 7, 8, 23000, 'Completed'),
+('TK-20260226-001', '59MM-8080', 1, 1, '2026-02-26 07:00:00', '2026-02-26 09:30:00', 3, 2, 1, 5000, 'Completed'),
+('TK-20260226-002', '51NN-9090', 2, 3, '2026-02-26 10:00:00', '2026-02-26 16:00:00', 12, 11, 12, 18000, 'Completed'),
+('TK-20260227-001', '59PP-1122', 1, 4, '2026-02-27 08:30:00', '2026-02-27 14:00:00', 16, 15, 15, 3000, 'Completed'),
+('TK-20260227-002', '51QQ-3344', 2, 5, '2026-02-27 07:00:00', '2026-02-27 19:00:00', 20, 19, 20, 15000, 'Completed'),
+-- Xe đang trong bãi (chưa ra)
+('TK-20260228-001', '59RR-5566', 1, 1, '2026-02-28 07:00:00', NULL, 2, NULL, 1, NULL, 'Active'),
+('TK-20260228-002', '51SS-7788', 2, 1, '2026-02-28 08:30:00', NULL, 3, NULL, 2, NULL, 'Active'),
+('TK-20260228-003', '59TT-9900', 1, 2, '2026-02-28 06:45:00', NULL, 7, NULL, 7, NULL, 'Active'),
+('TK-20260228-004', '51UU-1234', 2, 3, '2026-02-28 09:00:00', NULL, 11, NULL, 12, NULL, 'Active'),
+('TK-20260228-005', '59VV-5678', 1, 5, '2026-02-28 07:30:00', NULL, 19, NULL, 19, NULL, 'Active');
+-- ============================================================
+-- 12. SubscriptionEntries (25 bản ghi)
+-- ============================================================
+INSERT INTO SubscriptionEntries (SubscriptionID, ParkingLotID, CheckInTime, CheckOutTime, CheckInStaffID, CheckOutStaffID, Status) VALUES
+-- KH Hoàng Minh Tuấn (Sub 1, Bãi 1)
+(1, 1, '2026-02-20 07:30:00', '2026-02-20 17:45:00', 2, 3, 'Completed'),
+(1, 1, '2026-02-21 08:00:00', '2026-02-21 18:10:00', 2, 5, 'Completed'),
+(1, 1, '2026-02-22 07:15:00', '2026-02-22 17:00:00', 3, 2, 'Completed'),
+(1, 1, '2026-02-25 07:30:00', '2026-02-25 16:30:00', 2, 3, 'Completed'),
+(1, 1, '2026-02-28 07:00:00', NULL, 3, NULL, 'Active'),
+-- KH Vũ Thị Mai Lan (Sub 2, Bãi 1)
+(2, 1, '2026-02-20 08:30:00', '2026-02-20 16:00:00', 2, 3, 'Completed'),
+(2, 1, '2026-02-22 09:00:00', '2026-02-22 18:30:00', 3, 5, 'Completed'),
+(2, 1, '2026-02-26 08:00:00', '2026-02-26 17:00:00', 2, 2, 'Completed'),
+(2, 1, '2026-02-28 08:30:00', NULL, 2, NULL, 'Active'),
+-- KH Nguyễn Thanh Hải (Sub 3, Bãi 1)
+(3, 1, '2026-02-15 07:00:00', '2026-02-15 18:00:00', 5, 3, 'Completed'),
+(3, 1, '2026-02-18 07:30:00', '2026-02-18 17:30:00', 2, 5, 'Completed'),
+-- KH Lê Thị Hồng Nhung (Sub 4, Bãi 1)
+(4, 1, '2026-02-20 09:00:00', '2026-02-20 17:00:00', 3, 2, 'Completed'),
+(4, 1, '2026-02-25 08:30:00', '2026-02-25 18:00:00', 2, 5, 'Completed'),
+(4, 1, '2026-02-28 09:00:00', NULL, 5, NULL, 'Active'),
+-- KH Trần Quốc Bảo (Sub 5, Bãi 2)
+(5, 2, '2026-02-15 06:30:00', '2026-02-15 17:00:00', 7, 8, 'Completed'),
+(5, 2, '2026-02-20 07:00:00', '2026-02-20 16:30:00', 8, 7, 'Completed'),
+(5, 2, '2026-02-28 07:30:00', NULL, 7, NULL, 'Active'),
+-- KH Phạm Thị Thanh Thảo (Sub 6, Bãi 2)
+(6, 2, '2026-02-10 08:00:00', '2026-02-10 17:00:00', 8, 9, 'Completed'),
+(6, 2, '2026-02-15 08:30:00', '2026-02-15 16:00:00', 7, 8, 'Completed'),
+-- KH Đỗ Văn Nam (Sub 7, Bãi 3)
+(7, 3, '2026-02-10 07:00:00', '2026-02-10 18:00:00', 11, 12, 'Completed'),
+(7, 3, '2026-02-28 07:30:00', NULL, 12, NULL, 'Active'),
+-- KH Bùi Thị Kim Oanh (Sub 8, Bãi 3)
+(8, 3, '2026-02-20 09:00:00', '2026-02-20 16:30:00', 11, 13, 'Completed'),
+-- KH Võ Hoàng Phúc (Sub 9, Bãi 4)
+(9, 4, '2026-02-25 08:00:00', '2026-02-25 17:00:00', 15, 16, 'Completed'),
+(9, 4, '2026-02-28 08:00:00', NULL, 16, NULL, 'Active'),
+-- KH Hồ Sĩ Rạng (Sub 11, Bãi 1) - Vé 60 ngày
+(11, 1, '2026-02-01 07:00:00', '2026-02-01 18:00:00', 2, 3, 'Completed');

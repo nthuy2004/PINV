@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { doc, updateDoc, Timestamp, increment } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, Timestamp, increment } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Play,
@@ -17,11 +17,13 @@ import {
     Check,
     Lock,
     Coins,
+    AlertTriangle,
 } from 'lucide-react';
 import { db } from '@/lib/firebase/config';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui';
+import { PomodoroSettings } from '@/types';
 
 // Background themes
 const BACKGROUNDS = [
@@ -62,44 +64,89 @@ const BACKGROUNDS = [
     },
 ];
 
-// Sound effects
+// Sound effects - using .wav files
 const SOUNDS = [
     { id: 'none', name: 'Không có', price: 0 },
-    { id: 'rain', name: 'Mưa', price: 10, url: '/sounds/rain.mp3' },
-    { id: 'forest', name: 'Rừng', price: 10, url: '/sounds/forest.mp3' },
-    { id: 'cafe', name: 'Quán cafe', price: 15, url: '/sounds/cafe.mp3' },
-    { id: 'fireplace', name: 'Lò sưởi', price: 15, url: '/sounds/fireplace.mp3' },
-    { id: 'waves', name: 'Sóng biển', price: 20, url: '/sounds/waves.mp3' },
+    { id: 'rain', name: '🌧️ Mưa', price: 10, url: '/sounds/rain.wav' },
+    { id: 'forest', name: '🌳 Rừng', price: 10, url: '/sounds/forest.wav' },
+    { id: 'cafe', name: '☕ Quán cafe', price: 15, url: '/sounds/cafe.wav' },
+    { id: 'fireplace', name: '🔥 Lò sưởi', price: 15, url: '/sounds/fireplace.wav' },
+    { id: 'waves', name: '🌊 Sóng biển', price: 20, url: '/sounds/waves.wav' },
 ];
 
 type TimerMode = 'focus' | 'shortBreak' | 'longBreak';
 
-const TIMER_SETTINGS = {
-    focus: 25 * 60, // 25 minutes
-    shortBreak: 5 * 60, // 5 minutes
-    longBreak: 15 * 60, // 15 minutes
+const DEFAULT_SETTINGS: PomodoroSettings = {
+    focusTime: 25,
+    shortBreakTime: 5,
+    longBreakTime: 15,
 };
+
+// Load saved settings from localStorage
+function loadSettings(): PomodoroSettings {
+    if (typeof window === 'undefined') return DEFAULT_SETTINGS;
+    try {
+        const saved = localStorage.getItem('pomodoroSettings');
+        if (saved) return JSON.parse(saved);
+    } catch { }
+    return DEFAULT_SETTINGS;
+}
+
+function saveSettings(settings: PomodoroSettings) {
+    if (typeof window !== 'undefined') {
+        localStorage.setItem('pomodoroSettings', JSON.stringify(settings));
+    }
+}
 
 export default function PomodoroPage() {
     const { user, userData, refreshUserData } = useAuth();
 
+    // Timer settings (customizable)
+    const [settings, setSettings] = useState<PomodoroSettings>(DEFAULT_SETTINGS);
+
     // Timer state
     const [mode, setMode] = useState<TimerMode>('focus');
-    const [timeLeft, setTimeLeft] = useState(TIMER_SETTINGS.focus);
+    const [timeLeft, setTimeLeft] = useState(settings.focusTime * 60);
     const [isRunning, setIsRunning] = useState(false);
     const [sessionsCompleted, setSessionsCompleted] = useState(0);
 
+    // Tab visibility tracking
+    const [isTabVisible, setIsTabVisible] = useState(true);
+    const [tabLeftDuringFocus, setTabLeftDuringFocus] = useState(false);
+    const [showTabWarning, setShowTabWarning] = useState(false);
+
+    // Real-time study time tracking
+    const [todayStudyMinutes, setTodayStudyMinutes] = useState(0);
+    const [weekStudyMinutes, setWeekStudyMinutes] = useState(0);
+    const focusElapsedRef = useRef(0); // seconds elapsed in current focus session
+
     // UI state
     const [showShop, setShowShop] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
     const [shopTab, setShopTab] = useState<'backgrounds' | 'sounds'>('backgrounds');
     const [selectedBackground, setSelectedBackground] = useState(BACKGROUNDS[0]);
     const [selectedSound, setSelectedSound] = useState(SOUNDS[0]);
     const [isMuted, setIsMuted] = useState(false);
     const [purchasedItems, setPurchasedItems] = useState<string[]>(['nature_1', 'none']);
 
+    // Settings form
+    const [settingsFocusTime, setSettingsFocusTime] = useState(settings.focusTime);
+    const [settingsShortBreak, setSettingsShortBreak] = useState(settings.shortBreakTime);
+    const [settingsLongBreak, setSettingsLongBreak] = useState(settings.longBreakTime);
+
     // Audio refs
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const alarmRef = useRef<HTMLAudioElement | null>(null);
+
+    // Load settings on mount
+    useEffect(() => {
+        const saved = loadSettings();
+        setSettings(saved);
+        setTimeLeft(saved.focusTime * 60);
+        setSettingsFocusTime(saved.focusTime);
+        setSettingsShortBreak(saved.shortBreakTime);
+        setSettingsLongBreak(saved.longBreakTime);
+    }, []);
 
     // Initialize purchased items from user data
     useEffect(() => {
@@ -108,6 +155,48 @@ export default function PomodoroPage() {
         }
     }, [userData]);
 
+    // Load study time data
+    useEffect(() => {
+        if (!user) return;
+
+        const loadStudyTime = async () => {
+            try {
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                if (userDoc.exists()) {
+                    const data = userDoc.data();
+                    setTodayStudyMinutes(data.todayStudyTime || 0);
+                    setWeekStudyMinutes(data.weekStudyTime || data.totalStudyTime || 0);
+                }
+            } catch (error) {
+                console.error('Error loading study time:', error);
+            }
+        };
+
+        loadStudyTime();
+    }, [user]);
+
+    // Tab visibility detection
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            const visible = !document.hidden;
+            setIsTabVisible(visible);
+
+            if (!visible && isRunning && mode === 'focus') {
+                // User left tab during focus session
+                setTabLeftDuringFocus(true);
+            }
+
+            if (visible && tabLeftDuringFocus && isRunning) {
+                // User came back - show warning
+                setShowTabWarning(true);
+                setTimeout(() => setShowTabWarning(false), 3000);
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [isRunning, mode, tabLeftDuringFocus]);
+
     // Timer logic
     useEffect(() => {
         let interval: NodeJS.Timeout;
@@ -115,6 +204,17 @@ export default function PomodoroPage() {
         if (isRunning && timeLeft > 0) {
             interval = setInterval(() => {
                 setTimeLeft((prev) => prev - 1);
+
+                // Track elapsed focus time for real-time display
+                if (mode === 'focus') {
+                    focusElapsedRef.current += 1;
+
+                    // Update displayed time every 60 seconds
+                    if (focusElapsedRef.current % 60 === 0) {
+                        setTodayStudyMinutes(prev => prev + 1);
+                        setWeekStudyMinutes(prev => prev + 1);
+                    }
+                }
             }, 1000);
         } else if (timeLeft === 0 && isRunning) {
             // Timer completed
@@ -132,6 +232,7 @@ export default function PomodoroPage() {
             }
             audioRef.current = new Audio(selectedSound.url);
             audioRef.current.loop = true;
+            audioRef.current.volume = 0.5;
             if (isRunning) {
                 audioRef.current.play().catch(() => { });
             }
@@ -146,12 +247,21 @@ export default function PomodoroPage() {
         };
     }, [selectedSound, isMuted, isRunning]);
 
+    const getTimerSeconds = useCallback((timerMode: TimerMode) => {
+        switch (timerMode) {
+            case 'focus': return settings.focusTime * 60;
+            case 'shortBreak': return settings.shortBreakTime * 60;
+            case 'longBreak': return settings.longBreakTime * 60;
+        }
+    }, [settings]);
+
     const handleTimerComplete = async () => {
         setIsRunning(false);
 
         // Play alarm sound
         try {
-            alarmRef.current = new Audio('/sounds/alarm.mp3');
+            alarmRef.current = new Audio('/sounds/alarm.wav');
+            alarmRef.current.volume = 0.7;
             alarmRef.current.play().catch(() => { });
         } catch { }
 
@@ -159,47 +269,71 @@ export default function PomodoroPage() {
             const newSessionsCompleted = sessionsCompleted + 1;
             setSessionsCompleted(newSessionsCompleted);
 
-            // Award tokens for completing a focus session
-            if (user) {
+            // Award tokens ONLY if tab was visible the whole time
+            if (user && !tabLeftDuringFocus) {
                 try {
                     await updateDoc(doc(db, 'users', user.uid), {
-                        tokens: increment(5), // 5 tokens per focus session
-                        totalStudyTime: increment(25), // Track study time in minutes
+                        tokens: increment(5),
+                        totalStudyTime: increment(settings.focusTime),
+                        todayStudyTime: increment(settings.focusTime),
+                        weekStudyTime: increment(settings.focusTime),
                     });
                     refreshUserData();
                 } catch (error) {
                     console.error('Error awarding tokens:', error);
                 }
+            } else if (user && tabLeftDuringFocus) {
+                // Still track study time even if no tokens
+                try {
+                    await updateDoc(doc(db, 'users', user.uid), {
+                        totalStudyTime: increment(settings.focusTime),
+                        todayStudyTime: increment(settings.focusTime),
+                        weekStudyTime: increment(settings.focusTime),
+                    });
+                } catch { }
             }
+
+            // Reset tab tracking for next session
+            setTabLeftDuringFocus(false);
+            focusElapsedRef.current = 0;
 
             // Switch to break mode
             if (newSessionsCompleted % 4 === 0) {
                 setMode('longBreak');
-                setTimeLeft(TIMER_SETTINGS.longBreak);
+                setTimeLeft(settings.longBreakTime * 60);
             } else {
                 setMode('shortBreak');
-                setTimeLeft(TIMER_SETTINGS.shortBreak);
+                setTimeLeft(settings.shortBreakTime * 60);
             }
         } else {
             // Break completed, back to focus
             setMode('focus');
-            setTimeLeft(TIMER_SETTINGS.focus);
+            setTimeLeft(settings.focusTime * 60);
         }
     };
 
     const toggleTimer = () => {
+        if (!isRunning) {
+            // Reset tab tracking when starting
+            setTabLeftDuringFocus(false);
+            focusElapsedRef.current = 0;
+        }
         setIsRunning(!isRunning);
     };
 
     const resetTimer = () => {
         setIsRunning(false);
-        setTimeLeft(TIMER_SETTINGS[mode]);
+        setTimeLeft(getTimerSeconds(mode));
+        setTabLeftDuringFocus(false);
+        focusElapsedRef.current = 0;
     };
 
     const switchMode = (newMode: TimerMode) => {
         setMode(newMode);
-        setTimeLeft(TIMER_SETTINGS[newMode]);
+        setTimeLeft(getTimerSeconds(newMode));
         setIsRunning(false);
+        setTabLeftDuringFocus(false);
+        focusElapsedRef.current = 0;
     };
 
     const purchaseItem = async (itemId: string, price: number) => {
@@ -222,13 +356,41 @@ export default function PomodoroPage() {
         }
     };
 
+    const handleSaveSettings = () => {
+        const newSettings: PomodoroSettings = {
+            focusTime: Math.max(1, Math.min(120, settingsFocusTime)),
+            shortBreakTime: Math.max(1, Math.min(30, settingsShortBreak)),
+            longBreakTime: Math.max(1, Math.min(60, settingsLongBreak)),
+        };
+
+        setSettings(newSettings);
+        saveSettings(newSettings);
+
+        // Reset current timer to new settings
+        if (!isRunning) {
+            switch (mode) {
+                case 'focus': setTimeLeft(newSettings.focusTime * 60); break;
+                case 'shortBreak': setTimeLeft(newSettings.shortBreakTime * 60); break;
+                case 'longBreak': setTimeLeft(newSettings.longBreakTime * 60); break;
+            }
+        }
+
+        setShowSettings(false);
+    };
+
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
-    const progress = 1 - timeLeft / TIMER_SETTINGS[mode];
+    const formatStudyTime = (minutes: number) => {
+        const h = Math.floor(minutes / 60);
+        const m = minutes % 60;
+        return `${h}h${m.toString().padStart(2, '0')}p`;
+    };
+
+    const progress = 1 - timeLeft / getTimerSeconds(mode);
 
     return (
         <div
@@ -242,23 +404,57 @@ export default function PomodoroPage() {
             {/* Overlay */}
             <div className="absolute inset-0 bg-black/40" />
 
+            {/* Tab warning banner */}
+            <AnimatePresence>
+                {showTabWarning && (
+                    <motion.div
+                        initial={{ y: -60, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: -60, opacity: 0 }}
+                        className="fixed top-0 left-0 right-0 bg-orange-500 text-white px-4 py-3 flex items-center justify-center gap-2 z-50"
+                    >
+                        <AlertTriangle className="w-5 h-5" />
+                        <span className="font-medium">Bạn đã rời tab — phiên này sẽ không được tích token</span>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Tab left indicator (persistent) */}
+            {tabLeftDuringFocus && isRunning && mode === 'focus' && (
+                <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-orange-500/90 backdrop-blur-sm text-white px-4 py-2 rounded-xl text-sm z-40 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4" />
+                    Không tích token (đã rời tab)
+                </div>
+            )}
+
             {/* Content */}
             <div className="relative z-10 flex-1 flex flex-col p-6">
                 {/* Header */}
                 <header className="flex items-center justify-between mb-8">
                     <div className="text-white">
-                        <p className="text-sm opacity-80">Hôm nay: {Math.floor((sessionsCompleted * 25) / 60)}h{(sessionsCompleted * 25) % 60}p</p>
-                        <p className="text-sm opacity-80">Tuần này: 0h00p</p>
+                        <p className="text-sm opacity-80">
+                            Hôm nay: {formatStudyTime(todayStudyMinutes)}
+                        </p>
+                        <p className="text-sm opacity-80">
+                            Tuần này: {formatStudyTime(weekStudyMinutes)}
+                        </p>
                         <p className="flex items-center gap-1 mt-2">
-                            <span className="text-lg font-bold">Chuỗi: 30 🔥</span>
+                            <span className="text-lg font-bold">Chuỗi: {userData?.streak || 0} 🔥</span>
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
                         <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2 text-white">
                             <Coins className="w-5 h-5 text-primary-400" />
                             <span>Token: {userData?.tokens || 0}</span>
                         </div>
+                        <button
+                            onClick={() => setShowSettings(true)}
+                            className="p-2 bg-white/20 backdrop-blur-sm rounded-xl text-white hover:bg-white/30"
+                            title="Tùy chỉnh thời gian"
+                        >
+                            <Settings className="w-5 h-5" />
+                        </button>
                         <button
                             onClick={() => setShowShop(true)}
                             className="px-4 py-2 bg-white/20 backdrop-blur-sm rounded-xl text-white hover:bg-white/30"
@@ -283,7 +479,7 @@ export default function PomodoroPage() {
                                 )}
                             >
                                 <BookOpen className="w-4 h-4 inline mr-2" />
-                                Tập trung
+                                Tập trung ({settings.focusTime}p)
                             </button>
                             <button
                                 onClick={() => switchMode('shortBreak')}
@@ -295,7 +491,7 @@ export default function PomodoroPage() {
                                 )}
                             >
                                 <Coffee className="w-4 h-4 inline mr-2" />
-                                Nghỉ ngắn
+                                Nghỉ ngắn ({settings.shortBreakTime}p)
                             </button>
                             <button
                                 onClick={() => switchMode('longBreak')}
@@ -307,7 +503,7 @@ export default function PomodoroPage() {
                                 )}
                             >
                                 <Coffee className="w-4 h-4 inline mr-2" />
-                                Nghỉ dài
+                                Nghỉ dài ({settings.longBreakTime}p)
                             </button>
                         </div>
 
@@ -328,7 +524,7 @@ export default function PomodoroPage() {
                                     cy="144"
                                     r="136"
                                     fill="none"
-                                    stroke="white"
+                                    stroke={tabLeftDuringFocus && mode === 'focus' ? '#f97316' : 'white'}
                                     strokeWidth="8"
                                     strokeLinecap="round"
                                     strokeDasharray={2 * Math.PI * 136}
@@ -376,24 +572,130 @@ export default function PomodoroPage() {
 
                         {/* Session counter */}
                         <p className="mt-6 text-white opacity-80">
-                            Phiên #{sessionsCompleted + 1} • +5 tokens/phiên
+                            Phiên #{sessionsCompleted + 1} • {tabLeftDuringFocus ? '⚠️ Không tích token' : '+5 tokens/phiên'}
                         </p>
                     </div>
                 </div>
 
                 {/* Bottom toolbar */}
                 <div className="flex items-center justify-center gap-3">
-                    {['Custom', 'Nature', 'Anime', 'Nature', 'Nature'].map((cat, i) => (
+                    {BACKGROUNDS.slice(0, 5).map((bg, i) => (
                         <button
-                            key={i}
-                            className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-xl flex flex-col items-center justify-center text-white text-xs hover:bg-white/30"
+                            key={bg.id}
+                            onClick={() => {
+                                if (purchasedItems.includes(bg.id)) {
+                                    setSelectedBackground(bg);
+                                }
+                            }}
+                            className={cn(
+                                'w-16 h-16 rounded-xl overflow-hidden border-2 transition-all',
+                                selectedBackground.id === bg.id ? 'border-white' : 'border-transparent',
+                                !purchasedItems.includes(bg.id) && 'opacity-50'
+                            )}
                         >
-                            <ImageIcon className="w-5 h-5 mb-1" />
-                            {cat}
+                            <img src={bg.url} alt={bg.name} className="w-full h-full object-cover" />
                         </button>
                     ))}
                 </div>
             </div>
+
+            {/* Settings Modal */}
+            <AnimatePresence>
+                {showSettings && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+                        onClick={() => setShowSettings(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-white dark:bg-dark-800 rounded-2xl w-full max-w-sm p-6"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-xl font-bold">Tùy chỉnh thời gian</h2>
+                                <button
+                                    onClick={() => setShowSettings(false)}
+                                    className="p-2 hover:bg-dark-100 dark:hover:bg-dark-700 rounded-lg"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1.5">
+                                        ⏱️ Thời gian tập trung (phút)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        max={120}
+                                        value={settingsFocusTime}
+                                        onChange={(e) => setSettingsFocusTime(Number(e.target.value))}
+                                        className="input w-full text-center text-lg"
+                                    />
+                                    <p className="text-xs text-dark-400 mt-1">1 - 120 phút</p>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-1.5">
+                                        ☕ Nghỉ ngắn (phút)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        max={30}
+                                        value={settingsShortBreak}
+                                        onChange={(e) => setSettingsShortBreak(Number(e.target.value))}
+                                        className="input w-full text-center text-lg"
+                                    />
+                                    <p className="text-xs text-dark-400 mt-1">1 - 30 phút</p>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-1.5">
+                                        🛋️ Nghỉ dài (phút)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        max={60}
+                                        value={settingsLongBreak}
+                                        onChange={(e) => setSettingsLongBreak(Number(e.target.value))}
+                                        className="input w-full text-center text-lg"
+                                    />
+                                    <p className="text-xs text-dark-400 mt-1">1 - 60 phút</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 mt-6">
+                                <Button
+                                    variant="secondary"
+                                    className="flex-1"
+                                    onClick={() => {
+                                        setSettingsFocusTime(25);
+                                        setSettingsShortBreak(5);
+                                        setSettingsLongBreak(15);
+                                    }}
+                                >
+                                    Mặc định
+                                </Button>
+                                <Button
+                                    className="flex-1"
+                                    onClick={handleSaveSettings}
+                                >
+                                    Lưu
+                                </Button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Shop Modal */}
             <AnimatePresence>
