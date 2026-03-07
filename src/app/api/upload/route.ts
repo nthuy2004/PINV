@@ -3,12 +3,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 
-// Disable body parsing, use streams instead
-export const config = {
-    api: {
-        bodyParser: false,
-    },
-};
+
 
 const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads');
 
