@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
+import { adminStorage } from '@/lib/firebase/admin';
 import path from 'path';
-
-
-
-const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads');
 
 export async function POST(request: NextRequest) {
     try {
@@ -35,19 +30,13 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Validate file size (max 10MB)
-        const maxSize = 10 * 1024 * 1024;
+        // Validate file size (max 5MB for Vercel free tier)
+        const maxSize = 5 * 1024 * 1024;
         if (file.size > maxSize) {
             return NextResponse.json(
-                { error: 'File too large (max 10MB)' },
+                { error: 'File too large (max 5MB)' },
                 { status: 400 }
             );
-        }
-
-        // Create upload directory if not exists
-        const uploadPath = path.join(UPLOAD_DIR, folder);
-        if (!existsSync(uploadPath)) {
-            await mkdir(uploadPath, { recursive: true });
         }
 
         // Generate unique filename
@@ -55,15 +44,25 @@ export async function POST(request: NextRequest) {
         const randomStr = Math.random().toString(36).substring(2, 8);
         const ext = path.extname(file.name);
         const fileName = `${timestamp}_${randomStr}${ext}`;
-        const filePath = path.join(uploadPath, fileName);
+        const filePath = `${folder}/${fileName}`;
 
-        // Convert file to buffer and save
+        // Convert file to buffer
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
-        await writeFile(filePath, buffer);
 
-        // Return public URL
-        const publicUrl = `/uploads/${folder}/${fileName}`;
+        // Upload to Firebase Storage via Admin SDK
+        const bucket = adminStorage.bucket();
+        const fileRef = bucket.file(filePath);
+
+        await fileRef.save(buffer, {
+            metadata: {
+                contentType: file.type,
+            },
+            public: true, // Make file publicly accessible
+        });
+
+        // Get public URL
+        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
 
         return NextResponse.json({
             success: true,
@@ -84,27 +83,34 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
-        const filePath = searchParams.get('path');
+        const fileUrl = searchParams.get('path');
 
-        if (!filePath || !filePath.startsWith('/uploads/')) {
+        if (!fileUrl) {
             return NextResponse.json(
                 { error: 'Invalid file path' },
                 { status: 400 }
             );
         }
 
-        const fullPath = path.join(process.cwd(), 'public', filePath);
+        // Extract path from Google Storage URL
+        // Format: https://storage.googleapis.com/<bucket>/<path>
+        const bucket = adminStorage.bucket();
+        let filePath = fileUrl;
 
-        // Security check - make sure path is within uploads directory
-        if (!fullPath.startsWith(UPLOAD_DIR)) {
-            return NextResponse.json(
-                { error: 'Access denied' },
-                { status: 403 }
-            );
+        if (fileUrl.startsWith('https://storage.googleapis.com/')) {
+            const pathParts = fileUrl.replace(`https://storage.googleapis.com/${bucket.name}/`, '');
+            filePath = pathParts;
+        } else if (fileUrl.startsWith('/uploads/')) {
+            // Support deleting old local files if any
+            return NextResponse.json({ success: true, warning: 'Cannot delete local files on Vercel' });
         }
 
-        const fs = await import('fs/promises');
-        await fs.unlink(fullPath);
+        const fileRef = bucket.file(filePath);
+
+        const [exists] = await fileRef.exists();
+        if (exists) {
+            await fileRef.delete();
+        }
 
         return NextResponse.json({ success: true });
     } catch (error) {
