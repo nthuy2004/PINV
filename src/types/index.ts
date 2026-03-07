@@ -34,6 +34,14 @@ export interface User {
     tokens: number;
     maxTokens: number; // 20 or 50
 
+    // Pomodoro Stats
+    totalStudyTime?: number; // Total minutes studied
+    todayStudyTime?: number; // Minutes studied today
+    weekStudyTime?: number; // Minutes studied this week
+    pomodoroSessions?: number; // Number of completed sessions
+    streak?: number; // Daily study streak
+    purchasedItems?: string[]; // Array of purchased background/sound IDs
+
     // Metadata
     createdAt: Timestamp;
     updatedAt: Timestamp;

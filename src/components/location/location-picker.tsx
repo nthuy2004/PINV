@@ -19,10 +19,7 @@ const Marker = dynamic(
     () => import('react-leaflet').then((mod) => mod.Marker),
     { ssr: false }
 );
-const useMapEvents = dynamic(
-    () => import('react-leaflet').then((mod) => mod.useMapEvents),
-    { ssr: false }
-) as any;
+
 
 interface LocationPickerProps {
     value?: { lat: number; lng: number; address?: string };
@@ -267,15 +264,24 @@ function MapClickHandler({
 }: {
     onMapClick: (lat: number, lng: number) => void;
 }) {
-    // This will be handled client-side only
-    useEffect(() => {
-        // Import and use map events on client side
-        import('react-leaflet').then(({ useMapEvents }) => {
-            // Note: This component needs to be properly integrated with react-leaflet
-        });
-    }, []);
+    const [Component, setComponent] = useState<any>(null);
 
-    return null;
+    useEffect(() => {
+        // Dynamically import useMapEvents hook
+        import('react-leaflet').then(({ useMapEvents }) => {
+            const Handler = () => {
+                useMapEvents({
+                    click(e: any) {
+                        onMapClick(e.latlng.lat, e.latlng.lng);
+                    },
+                });
+                return null;
+            };
+            setComponent(() => Handler);
+        });
+    }, [onMapClick]);
+
+    return Component ? <Component /> : null;
 }
 
 // Export a simple text-based location input as fallback
