@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
         if (!imgbbApiKey) {
             console.error('Missing IMGBB_API_KEY environment variable');
             return NextResponse.json(
-                { error: 'Server configuration error' },
+                { error: 'Missing key.' },
                 { status: 500 }
             );
         }
