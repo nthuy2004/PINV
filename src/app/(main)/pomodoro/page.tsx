@@ -110,10 +110,7 @@ export default function PomodoroPage() {
     const [isRunning, setIsRunning] = useState(false);
     const [sessionsCompleted, setSessionsCompleted] = useState(0);
 
-    // Tab visibility tracking
-    const [isTabVisible, setIsTabVisible] = useState(true);
-    const [tabLeftDuringFocus, setTabLeftDuringFocus] = useState(false);
-    const [showTabWarning, setShowTabWarning] = useState(false);
+
 
     // Real-time study time tracking
     const [todayStudyMinutes, setTodayStudyMinutes] = useState(0);
@@ -175,27 +172,7 @@ export default function PomodoroPage() {
         loadStudyTime();
     }, [user]);
 
-    // Tab visibility detection
-    useEffect(() => {
-        const handleVisibilityChange = () => {
-            const visible = !document.hidden;
-            setIsTabVisible(visible);
 
-            if (!visible && isRunning && mode === 'focus') {
-                // User left tab during focus session
-                setTabLeftDuringFocus(true);
-            }
-
-            if (visible && tabLeftDuringFocus && isRunning) {
-                // User came back - show warning
-                setShowTabWarning(true);
-                setTimeout(() => setShowTabWarning(false), 3000);
-            }
-        };
-
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }, [isRunning, mode, tabLeftDuringFocus]);
 
     // Timer logic
     useEffect(() => {
@@ -269,8 +246,8 @@ export default function PomodoroPage() {
             const newSessionsCompleted = sessionsCompleted + 1;
             setSessionsCompleted(newSessionsCompleted);
 
-            // Award tokens ONLY if tab was visible the whole time
-            if (user && !tabLeftDuringFocus) {
+            // Award tokens
+            if (user) {
                 try {
                     await updateDoc(doc(db, 'users', user.uid), {
                         tokens: increment(5),
@@ -282,19 +259,8 @@ export default function PomodoroPage() {
                 } catch (error) {
                     console.error('Error awarding tokens:', error);
                 }
-            } else if (user && tabLeftDuringFocus) {
-                // Still track study time even if no tokens
-                try {
-                    await updateDoc(doc(db, 'users', user.uid), {
-                        totalStudyTime: increment(settings.focusTime),
-                        todayStudyTime: increment(settings.focusTime),
-                        weekStudyTime: increment(settings.focusTime),
-                    });
-                } catch { }
             }
 
-            // Reset tab tracking for next session
-            setTabLeftDuringFocus(false);
             focusElapsedRef.current = 0;
 
             // Switch to break mode
@@ -314,8 +280,6 @@ export default function PomodoroPage() {
 
     const toggleTimer = () => {
         if (!isRunning) {
-            // Reset tab tracking when starting
-            setTabLeftDuringFocus(false);
             focusElapsedRef.current = 0;
         }
         setIsRunning(!isRunning);
@@ -324,7 +288,6 @@ export default function PomodoroPage() {
     const resetTimer = () => {
         setIsRunning(false);
         setTimeLeft(getTimerSeconds(mode));
-        setTabLeftDuringFocus(false);
         focusElapsedRef.current = 0;
     };
 
@@ -332,7 +295,6 @@ export default function PomodoroPage() {
         setMode(newMode);
         setTimeLeft(getTimerSeconds(newMode));
         setIsRunning(false);
-        setTabLeftDuringFocus(false);
         focusElapsedRef.current = 0;
     };
 
@@ -403,29 +365,6 @@ export default function PomodoroPage() {
         >
             {/* Overlay */}
             <div className="absolute inset-0 bg-black/40" />
-
-            {/* Tab warning banner */}
-            <AnimatePresence>
-                {showTabWarning && (
-                    <motion.div
-                        initial={{ y: -60, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        exit={{ y: -60, opacity: 0 }}
-                        className="fixed top-0 left-0 right-0 bg-orange-500 text-white px-4 py-3 flex items-center justify-center gap-2 z-50"
-                    >
-                        <AlertTriangle className="w-5 h-5" />
-                        <span className="font-medium">Bạn đã rời tab — phiên này sẽ không được tích token</span>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* Tab left indicator (persistent) */}
-            {tabLeftDuringFocus && isRunning && mode === 'focus' && (
-                <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-orange-500/90 backdrop-blur-sm text-white px-4 py-2 rounded-xl text-sm z-40 flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4" />
-                    Không tích token (đã rời tab)
-                </div>
-            )}
 
             {/* Content */}
             <div className="relative z-10 flex-1 flex flex-col p-6">
@@ -524,7 +463,7 @@ export default function PomodoroPage() {
                                     cy="144"
                                     r="136"
                                     fill="none"
-                                    stroke={tabLeftDuringFocus && mode === 'focus' ? '#f97316' : 'white'}
+                                    stroke="white"
                                     strokeWidth="8"
                                     strokeLinecap="round"
                                     strokeDasharray={2 * Math.PI * 136}
@@ -572,7 +511,7 @@ export default function PomodoroPage() {
 
                         {/* Session counter */}
                         <p className="mt-6 text-white opacity-80">
-                            Phiên #{sessionsCompleted + 1} • {tabLeftDuringFocus ? '⚠️ Không tích token' : '+5 tokens/phiên'}
+                            Phiên #{sessionsCompleted + 1} • +5 tokens/phiên
                         </p>
                     </div>
                 </div>

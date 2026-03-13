@@ -330,3 +330,31 @@ export async function checkAndResetSwipeCounter(userId: string): Promise<void> {
     }
 }
 
+export async function getMyMatches(userId: string): Promise<User[]> {
+    const matchesQuery = query(
+        collection(db, 'matches'),
+        where('users', 'array-contains', userId)
+    );
+    const snapshot = await getDocs(matchesQuery);
+
+    if (snapshot.empty) return [];
+
+    const matchedUserIds = snapshot.docs.map(doc => {
+        const users = doc.data().users as string[];
+        return users.find(id => id !== userId);
+    }).filter(Boolean) as string[];
+
+    if (matchedUserIds.length === 0) return [];
+
+    const users: User[] = [];
+    await Promise.all(
+        matchedUserIds.map(async (id) => {
+            const userDoc = await getDoc(doc(db, 'users', id));
+            if (userDoc.exists()) {
+                users.push({ uid: userDoc.id, ...userDoc.data() } as User);
+            }
+        })
+    );
+
+    return users;
+}

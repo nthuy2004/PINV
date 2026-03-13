@@ -4,12 +4,13 @@ import { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Users, UsersRound, Coins, ShoppingBag, Timer, Flame, RefreshCw, UserPlus, Copy, Check as CheckIcon } from 'lucide-react';
 import { UserCard, GroupCard } from '@/components/matching';
+import { SidebarMap } from '@/components/location';
 import { Button, Input } from '@/components/ui';
 import { TodoList } from '@/components/todo';
 import { Calendar } from '@/components/calendar';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { cn, hasReachedSwipeLimit } from '@/lib/utils';
-import { getPotentialMatches, recordLike, recordDecline, updateSwipeCount } from '@/lib/firebase/matching';
+import { cn } from '@/lib/utils';
+import { getPotentialMatches, recordLike, recordDecline, updateSwipeCount, getMyMatches } from '@/lib/firebase/matching';
 import { getSwipeGroupsForDiscovery, requestJoinGroup, declineGroup } from '@/lib/firebase/group-matching';
 import { getFriendCode, matchByFriendCode } from '@/lib/firebase/friend-code';
 import { User, SwipeGroup } from '@/types';
@@ -49,11 +50,8 @@ export default function HomePage() {
     const [friendCodeMessage, setFriendCodeMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [codeCopied, setCodeCopied] = useState(false);
 
-    // Auto-reset swipe counter
-    const swipesUsed = userData?.dailySwipes || 0;
-    const isPremium = userData?.isPremium || false;
-    const swipeLimit = isPremium ? 10 : 5;
-    const hasReachedLimit = hasReachedSwipeLimit(swipesUsed, isPremium);
+    // Matched Users for Map
+    const [matchedUsers, setMatchedUsers] = useState<User[]>([]);
 
     // Check and reset swipe counter on mount
     useEffect(() => {
@@ -73,6 +71,20 @@ export default function HomePage() {
 
         checkSwipeReset();
     }, [user, userData]);
+
+    // Fetch matched users for the map
+    useEffect(() => {
+        if (!user) return;
+        const fetchMatches = async () => {
+            try {
+                const matches = await getMyMatches(user.uid);
+                setMatchedUsers(matches);
+            } catch (err) {
+                console.error('Error fetching matches:', err);
+            }
+        };
+        fetchMatches();
+    }, [user]);
 
     // Fetch potential matches from Firestore
     useEffect(() => {
@@ -145,7 +157,7 @@ export default function HomePage() {
     };
 
     const handleAccept = async (userId: string) => {
-        if (!user || processing || hasReachedLimit) return;
+        if (!user || processing) return;
 
         setProcessing(true);
         try {
@@ -176,7 +188,7 @@ export default function HomePage() {
     };
 
     const handleDecline = async (userId: string) => {
-        if (!user || processing || hasReachedLimit) return;
+        if (!user || processing) return;
 
         setProcessing(true);
         try {
@@ -391,21 +403,6 @@ export default function HomePage() {
                                     <div className="spinner w-10 h-10 border-primary-500 mx-auto mb-4" />
                                     <p className="text-dark-500">Đang tìm bạn học phù hợp...</p>
                                 </div>
-                            ) : hasReachedLimit ? (
-                                <div className="text-center py-12">
-                                    <div className="w-20 h-20 bg-dark-100 dark:bg-dark-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                                        <Timer className="w-10 h-10 text-dark-400" />
-                                    </div>
-                                    <h3 className="text-xl font-semibold mb-2">Đã hết lượt hôm nay</h3>
-                                    <p className="text-dark-500 mb-4">
-                                        Bạn đã sử dụng hết {swipeLimit} lượt. Quay lại vào ngày mai!
-                                    </p>
-                                    {!isPremium && (
-                                        <Button variant="primary">
-                                            Nâng cấp Premium để có thêm lượt
-                                        </Button>
-                                    )}
-                                </div>
                             ) : currentCandidate ? (
                                 <div>
                                     {/* Match reasons */}
@@ -554,21 +551,8 @@ export default function HomePage() {
                         </div>
                     </div>
 
-                    {/* Swipe counter */}
-                    <div className="card p-5">
-                        <h3 className="font-medium mb-3">Lượt còn lại hôm nay</h3>
-                        <div className="flex items-center gap-3">
-                            <div className="flex-1 h-2 bg-dark-100 dark:bg-dark-700 rounded-full overflow-hidden">
-                                <div
-                                    className="h-full bg-primary-500 transition-all"
-                                    style={{ width: `${((swipeLimit - swipesUsed) / swipeLimit) * 100}%` }}
-                                />
-                            </div>
-                            <span className="font-medium">
-                                {Math.max(0, swipeLimit - swipesUsed)}/{swipeLimit}
-                            </span>
-                        </div>
-                    </div>
+
+                    <SidebarMap matchedUsers={matchedUsers} />
 
                     {/* Calendar mini */}
                     <Calendar />
