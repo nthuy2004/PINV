@@ -67,9 +67,10 @@ export default function ChatListPage() {
         return () => unsubscribe();
     }, [user]);
 
-    const filteredChats = chats.filter((chat) =>
-        chat.otherUser.displayName.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredChats = chats.filter((chat) => {
+        if (!chat.otherUser) return true; // Show group chats by default or implement group search
+        return chat.otherUser.displayName?.toLowerCase().includes(searchQuery.toLowerCase());
+    });
 
     if (loading) {
         return (
@@ -108,40 +109,47 @@ export default function ChatListPage() {
                     </div>
                 ) : (
                     <div className="divide-y divide-dark-100 dark:divide-dark-700">
-                        {filteredChats.map((chat) => (
-                            <Link
-                                key={chat.id}
-                                href={`/chat/${chat.id}`}
-                                className="flex items-center gap-4 px-6 py-4 hover:bg-dark-50 dark:hover:bg-dark-800 transition-colors"
-                            >
-                                <Avatar
-                                    src={chat.otherUser.avatar}
-                                    name={chat.otherUser.displayName}
-                                    size="lg"
-                                    verified={chat.otherUser.isVerified}
-                                />
+                        {filteredChats.map((chat) => {
+                            const isGroup = chat.type === 'group';
+                            const displayName = isGroup ? 'Nhóm học' : chat.otherUser?.displayName || 'Unknown';
+                            const avatar = isGroup ? undefined : chat.otherUser?.avatar;
+                            const isVerified = isGroup ? false : chat.otherUser?.isVerified;
 
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center justify-between mb-1">
-                                        <h3 className="font-semibold truncate">
-                                            {chat.otherUser.displayName}
-                                        </h3>
-                                        {chat.lastMessage && (
-                                            <span className="text-xs text-dark-500">
-                                                {timeAgo(chat.lastMessage.createdAt as Timestamp)}
-                                            </span>
-                                        )}
+                            return (
+                                <Link
+                                    key={chat.id}
+                                    href={`/chat/${chat.id}`}
+                                    className="flex items-center gap-4 px-6 py-4 hover:bg-dark-50 dark:hover:bg-dark-800 transition-colors"
+                                >
+                                    <Avatar
+                                        src={avatar}
+                                        name={displayName}
+                                        size="lg"
+                                        verified={isVerified}
+                                    />
+
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <h3 className="font-semibold truncate">
+                                                {displayName}
+                                            </h3>
+                                            {chat.lastMessage && (
+                                                <span className="text-xs text-dark-500">
+                                                    {timeAgo(chat.lastMessage.createdAt as Timestamp)}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-sm text-dark-500 truncate">
+                                            {chat.lastMessage
+                                                ? chat.lastMessage.senderId === user?.uid
+                                                    ? `Bạn: ${truncate(chat.lastMessage.content, 30)}`
+                                                    : truncate(chat.lastMessage.content, 40)
+                                                : 'Bắt đầu cuộc trò chuyện!'}
+                                        </p>
                                     </div>
-                                    <p className="text-sm text-dark-500 truncate">
-                                        {chat.lastMessage
-                                            ? chat.lastMessage.senderId === user?.uid
-                                                ? `Bạn: ${truncate(chat.lastMessage.content, 30)}`
-                                                : truncate(chat.lastMessage.content, 40)
-                                            : 'Bắt đầu cuộc trò chuyện!'}
-                                    </p>
-                                </div>
-                            </Link>
-                        ))}
+                                </Link>
+                            );
+                        })}
                     </div>
                 )}
             </div>

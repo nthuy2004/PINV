@@ -42,7 +42,7 @@ export function calculateMatchScore(
     const reasons: string[] = [];
 
     // 1. Same school (+100)
-    if (currentUser.school.toLowerCase() === candidate.school.toLowerCase()) {
+    if (currentUser.school && candidate.school && currentUser.school.toLowerCase() === candidate.school.toLowerCase()) {
         score += WEIGHTS.SAME_SCHOOL;
         reasons.push('Cùng trường');
     }
@@ -72,7 +72,7 @@ export function calculateMatchScore(
     }
 
     // 4. Same location/area (+30)
-    if (currentUser.location.toLowerCase() === candidate.location.toLowerCase()) {
+    if (currentUser.location && candidate.location && currentUser.location.toLowerCase() === candidate.location.toLowerCase()) {
         score += WEIGHTS.SAME_LOCATION;
         reasons.push('Cùng khu vực');
     }

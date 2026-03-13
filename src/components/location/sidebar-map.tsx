@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { User, StudyLocation } from '@/types';
 import { GeoPoint } from 'firebase/firestore';
 import { MapPin } from 'lucide-react';
+import 'leaflet/dist/leaflet.css';
 
 // Require Leaflet dynamically because it uses `window`
 const MapContainer = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false });
