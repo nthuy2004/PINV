@@ -365,11 +365,15 @@ export default function GroupsPage() {
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {myGroups.map((group) => (
-                                <Link
+                                <div
                                     key={group.id}
-                                    href={`/groups/${group.id}`}
-                                    className="card p-5 hover:shadow-card-hover transition-shadow"
+                                    className="card p-5 hover:shadow-card-hover transition-shadow relative"
                                 >
+                                    <div className="absolute top-4 right-4">
+                                        <div className="px-2 py-1 bg-primary-50 text-primary-600 rounded-lg text-xs font-semibold">
+                                            Đã tham gia
+                                        </div>
+                                    </div>
                                     <div className="flex items-start justify-between mb-4">
                                         <div className="w-12 h-12 bg-primary-100 dark:bg-primary-900/30 rounded-xl flex items-center justify-center">
                                             <Users className="w-6 h-6 text-primary-500" />
@@ -395,7 +399,7 @@ export default function GroupsPage() {
                                         <MapPin className="w-4 h-4" />
                                         <span>{group.location}</span>
                                     </div>
-                                </Link>
+                                </div>
                             ))}
                         </div>
                     )}
