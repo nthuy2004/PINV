@@ -66,6 +66,7 @@ export default function GroupsPage() {
     const [showCreateSwipeGroup, setShowCreateSwipeGroup] = useState(false);
     const [matchedUsers, setMatchedUsers] = useState<{ user: User; matchId: string }[]>([]);
     const [selectedPartner, setSelectedPartner] = useState<string | null>(null);
+    const [selectedGroupMembers, setSelectedGroupMembers] = useState<string[]>([]);
     const [swipeGroupName, setSwipeGroupName] = useState('');
     const [swipeGroupDesc, setSwipeGroupDesc] = useState('');
     const [creatingSwipeGroup, setCreatingSwipeGroup] = useState(false);
@@ -135,13 +136,15 @@ export default function GroupsPage() {
 
     // Fetch swipe groups and matched users
     useEffect(() => {
-        if (!user || activeTab !== 'swipe') return;
+        if (!user) return;
 
         const fetchSwipeData = async () => {
             try {
                 // Get swipe groups
-                const groups = await getMySwipeGroups(user.uid);
-                setMySwipeGroups(groups);
+                if (activeTab === 'swipe') {
+                    const groups = await getMySwipeGroups(user.uid);
+                    setMySwipeGroups(groups);
+                }
 
                 // Get matched users for creating new swipe groups
                 const matchesQuery = query(
@@ -182,13 +185,14 @@ export default function GroupsPage() {
             const chatId = `group_chat_${Date.now()}`;
 
             // Create group
+            const groupMembers = [user.uid, ...selectedGroupMembers];
             const groupRef = await addDoc(collection(db, 'groups'), {
                 name: data.name,
                 description: data.description,
                 location: data.location,
                 isPublic: data.isPublic,
                 creatorId: user.uid,
-                members: [user.uid],
+                members: groupMembers,
                 membersCanCreateEvent: true,
                 chatId,
                 createdAt: Timestamp.now(),
@@ -198,7 +202,7 @@ export default function GroupsPage() {
             await addDoc(collection(db, 'chats'), {
                 id: chatId,
                 type: 'group',
-                participants: [user.uid],
+                participants: groupMembers,
                 groupId: groupRef.id,
                 createdAt: Timestamp.now(),
                 updatedAt: Timestamp.now(),
@@ -212,7 +216,7 @@ export default function GroupsPage() {
                 location: data.location,
                 isPublic: data.isPublic,
                 creatorId: user.uid,
-                members: [user.uid],
+                members: [user.uid, ...selectedGroupMembers],
                 membersCanCreateEvent: true,
                 chatId,
                 createdAt: Timestamp.now(),
@@ -220,6 +224,7 @@ export default function GroupsPage() {
 
             setMyGroups([newGroup, ...myGroups]);
             setShowCreateModal(false);
+            setSelectedGroupMembers([]);
             reset();
         } catch (error) {
             console.error('Error creating group:', error);
@@ -365,9 +370,10 @@ export default function GroupsPage() {
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {myGroups.map((group) => (
-                                <div
+                                <Link
                                     key={group.id}
-                                    className="card p-5 hover:shadow-card-hover transition-shadow relative"
+                                    href={`/chat/${group.chatId}`}
+                                    className="card p-5 hover:shadow-card-hover transition-shadow relative block cursor-pointer"
                                 >
                                     <div className="absolute top-4 right-4">
                                         <div className="px-2 py-1 bg-primary-50 text-primary-600 rounded-lg text-xs font-semibold">
@@ -399,7 +405,7 @@ export default function GroupsPage() {
                                         <MapPin className="w-4 h-4" />
                                         <span>{group.location}</span>
                                     </div>
-                                </div>
+                                </Link>
                             ))}
                         </div>
                     )}
@@ -485,6 +491,60 @@ export default function GroupsPage() {
                 </>
             )}
 
+            {/* Swipe Groups Tab */}
+            {activeTab === 'swipe' && (
+                <>
+                    <div className="flex justify-between items-center mb-6">
+                        <div>
+                            <h2 className="text-xl font-semibold">Nhóm quẹt của bạn</h2>
+                            <p className="text-dark-500 text-sm">
+                                Tạo nhóm với những người bạn đã match và bắt đầu vuốt từ điển chung
+                            </p>
+                        </div>
+                        <Button onClick={() => setShowCreateSwipeGroup(true)} icon={<Zap className="w-4 h-4" />}>
+                            Tạo nhóm quẹt
+                        </Button>
+                    </div>
+
+                    {mySwipeGroups.length === 0 ? (
+                        <div className="text-center py-16">
+                            <div className="w-20 h-20 bg-dark-100 dark:bg-dark-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Zap className="w-10 h-10 text-dark-400" />
+                            </div>
+                            <h3 className="text-xl font-semibold mb-2">Chưa có nhóm quẹt nào</h3>
+                            <p className="text-dark-500 mb-4">
+                                Chọn một người bạn đã match và tạo nhóm quẹt ngay thôi!
+                            </p>
+                            <Button onClick={() => setShowCreateSwipeGroup(true)}>Tạo nhóm quẹt ngay</Button>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {mySwipeGroups.map((group) => (
+                                <Link
+                                    key={group.id}
+                                    href={`/chat/${group.chatId}`}
+                                    className="card p-5 hover:shadow-card-hover transition-shadow relative block cursor-pointer"
+                                >
+                                    <div className="flex items-start justify-between mb-4">
+                                        <div className="w-12 h-12 bg-primary-100 dark:bg-primary-900/30 rounded-xl flex items-center justify-center">
+                                            <Zap className="w-6 h-6 text-primary-500" />
+                                        </div>
+                                        <span className="text-sm text-dark-500">
+                                            {group.members.length} thành viên
+                                        </span>
+                                    </div>
+
+                                    <h3 className="font-semibold text-lg mb-2">{group.name}</h3>
+                                    <p className="text-dark-500 text-sm mb-4 line-clamp-2">
+                                        {group.description}
+                                    </p>
+                                </Link>
+                            ))}
+                        </div>
+                    )}
+                </>
+            )}
+
             {/* Create group modal */}
             {showCreateModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -551,6 +611,59 @@ export default function GroupsPage() {
                                     />
                                     <div className="w-11 h-6 bg-dark-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
                                 </label>
+                            </div>
+
+                            {/* Invite matched users */}
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium mb-2">Thêm bạn bè đã match (Tùy chọn)</label>
+                                {matchedUsers.length === 0 ? (
+                                    <p className="text-sm text-dark-400">Bạn chưa có bạn bè đã match nào.</p>
+                                ) : (
+                                    <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                                        {matchedUsers.map(({ user: matchUser }) => {
+                                            const isSelected = selectedGroupMembers.includes(matchUser.uid);
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    key={matchUser.uid}
+                                                    onClick={() => {
+                                                        if (isSelected) {
+                                                            setSelectedGroupMembers((prev) =>
+                                                                prev.filter((id) => id !== matchUser.uid)
+                                                            );
+                                                        } else {
+                                                            // Limit to 4 friends to keep total member count under 5 (including creator)
+                                                            if (selectedGroupMembers.length >= 4) {
+                                                                alert('Bạn chỉ có thể mời tối đa 4 bạn bè khi tạo nhóm.');
+                                                                return;
+                                                            }
+                                                            setSelectedGroupMembers((prev) => [...prev, matchUser.uid]);
+                                                        }
+                                                    }}
+                                                    className={cn(
+                                                        'w-full flex items-center gap-3 p-3 rounded-xl transition-colors',
+                                                        isSelected
+                                                            ? 'bg-primary-100 dark:bg-primary-900/30 border-2 border-primary-500'
+                                                            : 'bg-dark-50 dark:bg-dark-700 hover:bg-dark-100 dark:hover:bg-dark-600 border-2 border-transparent'
+                                                    )}
+                                                >
+                                                    <Avatar
+                                                        src={matchUser.avatar}
+                                                        name={matchUser.displayName}
+                                                        size="sm"
+                                                    />
+                                                    <span className="font-medium text-sm text-left flex-1" >
+                                                        {matchUser.displayName}
+                                                        {matchUser.school && <span className="block text-xs text-dark-400 font-normal">{matchUser.school}</span>}
+                                                    </span>
+                                                    {isSelected && (
+                                                        <Check className="w-5 h-5 text-primary-500 ml-auto flex-shrink-0" />
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex gap-3 pt-4">

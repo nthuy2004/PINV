@@ -1,0 +1,403 @@
+# Luồng Hoạt Động Ứng Dụng LearnHub
+
+## Tổng Quan
+
+**LearnHub** là ứng dụng web giúp học sinh/sinh viên tìm bạn học dựa trên điểm chung. Được xây dựng bằng **Next.js 14**, **Firebase**, và **TailwindCSS**.
+
+---
+
+## 1. Luồng Tổng Quát (Overview)
+
+```mermaid
+flowchart TD
+    START(["🌐 Truy cập App"]) --> ROOT["/ (Root Page)"]
+    ROOT -->|redirect| LOGIN["🔐 Đăng nhập"]
+    
+    LOGIN -->|Thành công| HOME["🏠 Trang chủ"]
+    LOGIN -->|Chưa có tài khoản| REG["📝 Đăng ký"]
+    
+    REG -->|Thành công| SETUP["👤 Thiết lập hồ sơ"]
+    SETUP -->|Hoàn tất| HOME
+
+    HOME --> MATCH["🎯 Tìm bạn học (Matching)"]
+    HOME --> CHAT["💬 Tin nhắn"]
+    HOME --> GROUPS["👥 Nhóm học"]
+    HOME --> POMO["🍅 Pomodoro"]
+    HOME --> PROFILE["👤 Hồ sơ"]
+    HOME --> SETTINGS["⚙️ Cài đặt"]
+    HOME --> NOTIF["🔔 Thông báo"]
+    HOME --> AI["🤖 AI Trợ lý"]
+
+    style START fill:#10b981,color:#fff
+    style HOME fill:#6366f1,color:#fff
+    style LOGIN fill:#f59e0b,color:#fff
+    style REG fill:#f59e0b,color:#fff
+    style SETUP fill:#f59e0b,color:#fff
+```
+
+---
+
+## 2. Luồng Xác Thực (Authentication Flow)
+
+```mermaid
+flowchart TD
+    A["🔐 Trang Đăng Nhập<br>/login"] --> B{"Người dùng nhập<br>Email + Mật khẩu"}
+    B -->|Submit| C{"Firebase Auth<br>signIn()"}
+    C -->|✅ Thành công| D["Redirect → /home"]
+    C -->|❌ user-not-found<br>wrong-password| E["Hiển thị lỗi:<br>Email hoặc mật khẩu<br>không đúng"]
+    C -->|❌ Lỗi khác| F["Hiển thị lỗi:<br>Đã có lỗi xảy ra"]
+    E --> B
+    F --> B
+
+    A -->|"Chưa có tài khoản?"| G["📝 Trang Đăng Ký<br>/register"]
+    G --> H{"Nhập thông tin:<br>• Họ tên<br>• Email<br>• Username<br>• SĐT<br>• Ngày sinh<br>• Trường<br>• Mật khẩu"}
+    H -->|Submit| I{"Firebase Auth<br>createUser()"}
+    I -->|✅ Thành công| J["Tạo user doc<br>trong Firestore"]
+    J --> K["Redirect →<br>/profile/setup"]
+    I -->|❌ Email đã tồn tại| L["Hiển thị lỗi"]
+    L --> H
+
+    K --> M["👤 Thiết Lập Hồ Sơ<br>4 bước"]
+
+    style A fill:#f59e0b,color:#fff
+    style G fill:#f59e0b,color:#fff
+    style D fill:#10b981,color:#fff
+    style K fill:#6366f1,color:#fff
+```
+
+---
+
+## 3. Thiết Lập Hồ Sơ (Profile Setup Flow)
+
+```mermaid
+flowchart LR
+    S1["Step 1<br>👤 Thông tin<br>cơ bản"] --> S2["Step 2<br>📸 Ảnh hồ sơ"]
+    S2 --> S3["Step 3<br>❤️ Sở thích<br>(chọn ≥ 5)"]
+    S3 --> S4["Step 4<br>✅ Hoàn tất"]
+    S4 -->|Lưu Firestore| HOME["🏠 /home"]
+
+    style S1 fill:#3b82f6,color:#fff
+    style S2 fill:#8b5cf6,color:#fff
+    style S3 fill:#ec4899,color:#fff
+    style S4 fill:#10b981,color:#fff
+    style HOME fill:#6366f1,color:#fff
+```
+
+**Chi tiết các bước:**
+
+| Bước | Thông tin | Validation |
+|------|-----------|------------|
+| 1 - Thông tin cơ bản | Trường, Lớp, MSSV, Bio | Bắt buộc (trừ Bio) |
+| 2 - Ảnh hồ sơ | Upload ảnh đại diện | - |
+| 3 - Sở thích | Chọn từ 50+ sở thích | Tối thiểu 5 sở thích |
+| 4 - Hoàn tất | Xác nhận & Lưu | Lưu vào Firestore |
+
+---
+
+## 4. Luồng Matching (Tìm Bạn Học)
+
+```mermaid
+flowchart TD
+    HOME["🏠 Trang chủ"] --> TAB{"Chọn tab"}
+    TAB -->|"👤 Cá nhân"| SWIPE["Swipe 1-1"]
+    TAB -->|"👥 Nhóm"| GROUP_SWIPE["Swipe Nhóm"]
+    TAB -->|"🔗 Mã bạn bè"| FRIEND_CODE["Nhập Friend Code"]
+
+    subgraph Individual["🎯 Matching Cá Nhân"]
+        SWIPE --> FETCH["Lấy danh sách<br>ứng viên<br>(getPotentialMatches)"]
+        FETCH --> SCORE["Tính điểm phù hợp"]
+        SCORE --> CARD["Hiển thị thẻ<br>ứng viên"]
+        CARD -->|"✅ Thích"| LIKE["recordLike()"]
+        CARD -->|"❌ Bỏ qua"| DECLINE["recordDecline()"]
+        LIKE --> CHECK{"Đối phương<br>đã thích mình?"}
+        CHECK -->|Có| MATCHED["🎉 IT'S A MATCH!<br>Tạo chat mới"]
+        CHECK -->|Chưa| NEXT["Hiện ứng viên<br>tiếp theo"]
+        DECLINE --> UPDATE_SWIPE["updateSwipeCount()"]
+        UPDATE_SWIPE --> LIMIT{"Đạt giới hạn<br>swipe/ngày?"}
+        LIMIT -->|"Free: 5/ngày"| WAIT["⏰ Chờ ngày mai"]
+        LIMIT -->|"Premium: 10/ngày"| WAIT
+        LIMIT -->|Chưa đạt| NEXT
+        MATCHED --> NEXT
+    end
+
+    subgraph GroupMatch["👥 Matching Nhóm"]
+        GROUP_SWIPE --> G_FETCH["getSwipeGroupsForDiscovery()"]
+        G_FETCH --> G_CARD["Hiển thị thẻ nhóm<br>+ thành viên"]
+        G_CARD -->|"✅ Tham gia"| G_JOIN["requestJoinGroup()"]
+        G_CARD -->|"❌ Bỏ qua"| G_DECLINE["declineGroup()"]
+        G_JOIN --> G_PENDING["📬 Chờ duyệt<br>từ thành viên nhóm"]
+        G_PENDING -->|Được duyệt| G_MEMBER["Gia nhập nhóm!"]
+    end
+
+    style HOME fill:#6366f1,color:#fff
+    style MATCHED fill:#10b981,color:#fff
+    style G_MEMBER fill:#10b981,color:#fff
+```
+
+### Thuật Toán Tính Điểm Matching
+
+```mermaid
+flowchart LR
+    A["Điểm Matching"] --> B["🏫 Cùng trường: +100"]
+    A --> C["⭐ Premium: +50"]
+    A --> D["📍 Khoảng cách: +0~40"]
+    A --> E["📍 Cùng nơi ở: +30"]
+    A --> F["❤️ Sở thích chung: +5/cái<br>(tối đa +25)"]
+    A --> G["🎂 Cùng tuổi: +10"]
+
+    style A fill:#6366f1,color:#fff
+```
+
+---
+
+## 5. Luồng Chat (Tin Nhắn)
+
+```mermaid
+flowchart TD
+    CHAT_LIST["📋 Danh sách chat<br>/chat"] --> SEARCH["🔍 Tìm kiếm<br>cuộc trò chuyện"]
+    CHAT_LIST --> SELECT["Chọn cuộc trò chuyện"]
+    SELECT --> CHAT_ROOM["💬 Phòng chat<br>/chat/[id]"]
+
+    CHAT_ROOM --> MSG{"Loại tin nhắn"}
+    MSG -->|📝 Text| SEND_TEXT["Gửi tin nhắn văn bản"]
+    MSG -->|📷 Ảnh| SEND_IMG["Upload & gửi ảnh"]
+    MSG -->|📎 File| SEND_FILE["Upload & gửi file"]
+    MSG -->|📍 Vị trí| SEND_LOC["Gửi vị trí (GeoPoint)"]
+
+    CHAT_ROOM --> MAP["🗺️ Mở bản đồ<br>tìm quán cafe"]
+    MAP --> CAFE["Chọn quán cafe<br>gần nhất"]
+    CAFE --> SHARE_LOC["Gửi vị trí quán<br>vào chat"]
+
+    CHAT_ROOM --> REPORT["🚫 Báo cáo/<br>Chặn người dùng"]
+
+    style CHAT_LIST fill:#3b82f6,color:#fff
+    style CHAT_ROOM fill:#8b5cf6,color:#fff
+```
+
+---
+
+## 6. Luồng Nhóm Học (Study Groups)
+
+```mermaid
+flowchart TD
+    GROUPS["👥 Trang Nhóm<br>/groups"] --> TAB2{"Tab"}
+    TAB2 -->|"📋 Nhóm của tôi"| MY["Danh sách<br>nhóm đã tham gia"]
+    TAB2 -->|"🔍 Khám phá"| EXPLORE["Danh sách<br>nhóm công khai"]
+    TAB2 -->|"🎯 Swipe Groups"| SWIPE_G["Danh sách<br>Swipe Groups"]
+
+    MY --> VIEW_GROUP["Xem chi tiết nhóm"]
+    
+    EXPLORE --> JOIN["Tham gia nhóm"]
+    JOIN --> JOIN_SUCCESS["✅ Gia nhập thành công"]
+
+    subgraph CreateGroup["➕ Tạo Nhóm Mới"]
+        CREATE["Nhập thông tin:<br>• Tên nhóm<br>• Mô tả<br>• Địa điểm<br>• Công khai/Riêng tư"]
+        CREATE --> SAVE_GROUP["Lưu vào Firestore<br>+ Tạo group chat"]
+    end
+
+    GROUPS --> CREATE
+
+    subgraph SwipeGroupFlow["🎯 Swipe Group"]
+        SWIPE_G --> SG_CARD["Hiển thị nhóm"]
+        SG_CARD -->|"✅ Muốn tham gia"| SG_REQ["Gửi yêu cầu"]
+        SG_CARD -->|"❌ Bỏ qua"| SG_SKIP["Bỏ qua"]
+        SG_REQ --> SG_PENDING["Chờ duyệt"]
+        SG_PENDING -->|"Thành viên duyệt"| SG_JOIN["Gia nhập!"]
+    end
+
+    style GROUPS fill:#6366f1,color:#fff
+    style JOIN_SUCCESS fill:#10b981,color:#fff
+    style SG_JOIN fill:#10b981,color:#fff
+```
+
+---
+
+## 7. Luồng Pomodoro Timer
+
+```mermaid
+flowchart TD
+    POMO["🍅 Pomodoro<br>/pomodoro"] --> MODE{"Chọn chế độ"}
+    MODE -->|"🎯 Focus"| FOCUS["25 phút tập trung"]
+    MODE -->|"☕ Nghỉ ngắn"| SHORT["5 phút nghỉ"]
+    MODE -->|"🛋️ Nghỉ dài"| LONG["15 phút nghỉ"]
+
+    FOCUS --> PLAY["▶️ Bắt đầu đếm"]
+    PLAY --> RUNNING{"⏱️ Đang chạy"}
+    RUNNING -->|"⏸️ Tạm dừng"| PAUSED["Tạm dừng"]
+    PAUSED -->|"▶️ Tiếp tục"| RUNNING
+    RUNNING -->|"🔄 Reset"| MODE
+    RUNNING -->|"⏰ Hết giờ"| COMPLETE["🎉 Hoàn thành!"]
+
+    COMPLETE --> EARN["🪙 +1 Token<br>Cập nhật thống kê"]
+    EARN --> AUTO{"Tự động chuyển"}
+    AUTO -->|"Focus → Short Break"| SHORT
+    AUTO -->|"Break → Focus"| FOCUS
+
+    POMO --> SHOP["🛍️ Cửa hàng"]
+    SHOP --> BG["🎨 Mua hình nền<br>(10-30 tokens)"]
+    SHOP --> SOUND["🎵 Mua âm thanh<br>(10-20 tokens)"]
+    SHOP --> SETTINGS_P["⚙️ Cài đặt thời gian<br>tùy chỉnh"]
+
+    style POMO fill:#ef4444,color:#fff
+    style COMPLETE fill:#10b981,color:#fff
+    style EARN fill:#f59e0b,color:#fff
+```
+
+---
+
+## 8. Hệ Thống Token & Voucher
+
+```mermaid
+flowchart LR
+    subgraph Earn["🪙 Cách Kiếm Token"]
+        E1["📅 Check-in hàng ngày"]
+        E2["🍅 Hoàn thành Pomodoro"]
+        E3["🎁 Bonus hàng ngày"]
+    end
+
+    subgraph Spend["💸 Cách Tiêu Token"]
+        S1["🎨 Mua hình nền Pomodoro"]
+        S2["🎵 Mua âm thanh"]
+        S3["🎫 Đổi Voucher"]
+    end
+
+    subgraph Limits["📊 Giới Hạn"]
+        L1["Free: max 20 tokens"]
+        L2["Premium: max 50 tokens"]
+    end
+
+    Earn --> Limits
+    Limits --> Spend
+
+    style E1 fill:#10b981,color:#fff
+    style E2 fill:#10b981,color:#fff
+    style E3 fill:#10b981,color:#fff
+    style S1 fill:#ef4444,color:#fff
+    style S2 fill:#ef4444,color:#fff
+    style S3 fill:#ef4444,color:#fff
+```
+
+---
+
+## 9. Luồng Quản Trị (Admin)
+
+```mermaid
+flowchart TD
+    ADMIN["👑 Admin Dashboard<br>/admin"] --> TABS{"Chức năng"}
+    TABS -->|"👥 Quản lý người dùng"| USERS["Danh sách Users<br>Duyệt/Từ chối/Ban"]
+    TABS -->|"🎫 Quản lý Voucher"| VOUCHERS["Tạo/Sửa/Xóa Voucher<br>/admin/vouchers"]
+    TABS -->|"📊 Thống kê"| STATS["Tổng user, premium,<br>matches, groups"]
+
+    USERS --> REVIEW{"Review Status"}
+    REVIEW -->|Approve| APPROVED["✅ Đã duyệt"]
+    REVIEW -->|Reject| REJECTED["❌ Từ chối"]
+    REVIEW -->|Ban| BANNED["🚫 Cấm"]
+
+    style ADMIN fill:#991b1b,color:#fff
+```
+
+---
+
+## 10. Luồng Cài Đặt & Hồ Sơ
+
+```mermaid
+flowchart TD
+    SETTINGS["⚙️ Cài đặt<br>/settings"] --> S_ITEMS{"Tùy chọn"}
+    S_ITEMS --> S1["🌙 Chế độ tối<br>(toggle)"]
+    S_ITEMS --> S2["👤 Chỉnh sửa hồ sơ"]
+    S_ITEMS --> S3["🔒 Đổi mật khẩu"]
+    S_ITEMS --> S4["🛡️ Bảo mật"]
+    S_ITEMS --> S5["🔔 Thông báo"]
+    S_ITEMS --> S6["👁️ Quyền riêng tư"]
+    S_ITEMS --> S7["⭐ Nâng cấp Premium"]
+    S_ITEMS --> S8["🚪 Đăng xuất"]
+    S_ITEMS --> S9["🗑️ Xóa tài khoản"]
+
+    S2 --> PROFILE["👤 Trang Hồ Sơ<br>/profile"]
+    PROFILE --> P_EDIT["Chỉnh sửa:<br>• Ảnh đại diện<br>• Họ tên, Trường, Lớp<br>• MSSV, Bio<br>• Sở thích"]
+    P_EDIT --> P_SAVE["💾 Lưu thay đổi"]
+
+    S8 -->|"signOut()"| LOGIN["🔐 /login"]
+
+    style SETTINGS fill:#6366f1,color:#fff
+    style LOGIN fill:#f59e0b,color:#fff
+```
+
+---
+
+## 11. Layout & Navigation
+
+```mermaid
+flowchart LR
+    subgraph Desktop["🖥️ Desktop"]
+        SIDEBAR["Sidebar (trái)<br>• Logo<br>• Menu chính<br>• User info"]
+        MAIN_D["Main Content<br>(bên phải sidebar)"]
+    end
+
+    subgraph Mobile["📱 Mobile"]
+        HEADER["Header (trên)<br>Logo + Menu icon"]
+        MAIN_M["Main Content<br>(giữa)"]
+        BOTTOM["Bottom Nav<br>(dưới)"]
+    end
+
+    AI_BTN["🤖 AI Assistant<br>(nút nổi)"]
+```
+
+### Menu Navigation
+
+| Icon | Trang | Đường dẫn |
+|------|-------|-----------|
+| 🏠 | Trang chủ (Matching) | `/home` |
+| 💬 | Tin nhắn | `/chat` |
+| 👥 | Nhóm học | `/groups` |
+| 🍅 | Pomodoro | `/pomodoro` |
+| 🔔 | Thông báo | `/notifications` |
+| 👤 | Hồ sơ | `/profile` |
+| ⚙️ | Cài đặt | `/settings` |
+
+---
+
+## 12. Kiến Trúc Dữ Liệu (Firebase Collections)
+
+```mermaid
+erDiagram
+    USERS ||--o{ LIKES : "gửi/nhận"
+    USERS ||--o{ MATCHES : "tham gia"
+    USERS ||--o{ CHATS : "tham gia"
+    USERS ||--o{ MESSAGES : "gửi"
+    USERS ||--o{ STUDY_GROUPS : "tạo/tham gia"
+    USERS ||--o{ SWIPE_GROUPS : "tạo/tham gia"
+    USERS ||--o{ NOTIFICATIONS : "nhận"
+    USERS ||--o{ REPORTS : "gửi/bị báo cáo"
+    USERS ||--o{ TOKEN_TRANSACTIONS : "có"
+    USERS ||--o{ FRIEND_CODES : "sở hữu"
+
+    MATCHES ||--|| CHATS : "tạo"
+    CHATS ||--o{ MESSAGES : "chứa"
+    STUDY_GROUPS ||--|| CHATS : "có"
+    SWIPE_GROUPS ||--o{ GROUP_JOIN_REQUESTS : "nhận"
+    VOUCHERS ||--o{ VOUCHER_REDEMPTIONS : "được đổi"
+
+    USERS {
+        string uid PK
+        string email
+        string displayName
+        string school
+        array interests
+        boolean isPremium
+        number tokens
+        number dailySwipes
+    }
+
+    MATCHES {
+        string id PK
+        array users
+        string chatId
+    }
+
+    CHATS {
+        string id PK
+        string type
+        array participants
+    }
+```
